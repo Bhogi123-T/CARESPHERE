@@ -1,0 +1,17 @@
+Flask==3.0.0
+Flask-Cors
+Flask-SQLAlchemy
+Flask-SocketIO
+Flask-Login
+Flask-JWT-Extended
+eventlet
+psycopg2-binary
+python-dotenv
+scikit-learn
+pandas
+numpy
+joblib
+bcrypt
+Flask-Migrate
+Flask-Limiter
+gunicorn

@@ -1,0 +1,1 @@
+{"python.analysis.typeCheckingMode": "off", "python.analysis.diagnosticSeverityOverrides": {"reportUnusedImport": "none", "reportUnusedVariable": "none", "reportMissingImports": "none", "reportUndefinedVariable": "none"}, "javascript.validate.enable": false, "eslint.enable": false, "css.lint.unknownAtRules": "ignore"}

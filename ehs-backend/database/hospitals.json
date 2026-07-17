@@ -1,0 +1,14 @@
+[
+  {
+    "id": 1,
+    "name": "City General Hospital",
+    "location": "Downtown",
+    "availability": true
+  },
+  {
+    "id": 2,
+    "name": "Rural Care Clinic",
+    "location": "Village Sector 4",
+    "availability": true
+  }
+]

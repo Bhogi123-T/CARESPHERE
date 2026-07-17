@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: ehs-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-ehs}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./ehs-backend
+      dockerfile: Dockerfile
+    container_name: ehs-backend
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-ehs}
+      - SECRET_KEY=${SECRET_KEY:-your_production_secret_key_here}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your_production_jwt_secret_key_here}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_FROM_NUMBER=${TWILIO_FROM_NUMBER}
+    depends_on:
+      - db
+
+  frontend:
+    build:
+      context: ./ehs-frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:5000 # Update this for real cloud deployments (e.g. https://api.yourdomain.com)
+    container_name: ehs-frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
