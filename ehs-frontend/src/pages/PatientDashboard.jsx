@@ -6,7 +6,7 @@ import { BACKEND_URL } from '../services/api';
 import { 
   AlertCircle, CheckCircle2, Activity, HeartPulse, 
   Baby, ThermometerSun, Pill, History, Stethoscope, UserPlus, MapPin, Navigation, Truck,
-  Mic, PhoneCall, Video, Users, Clock, Phone, BookOpen, BellRing, Battery, Languages
+  Mic, PhoneCall, Video, Users, Clock, Phone, BookOpen, BellRing, Battery, Languages, Database
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -14,19 +14,23 @@ import L from 'leaflet';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useLiveLocation } from '../hooks/useLiveLocation';
+import { useLanguage } from '../context/LanguageContext';
 import { useToast } from '../context/ToastContext';
-
+import MapboxGlobe from '../components/MapboxGlobe';
 
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import PageWrapper from '../components/ui/PageWrapper';
 import ThemeToggle from '../components/ui/ThemeToggle';
+import LanguageToggle from '../components/ui/LanguageToggle';
 import { useNetworkState } from '../hooks/useNetworkState';
 import InteractiveCard from '../components/ui/InteractiveCard';
 import MagneticButton from '../components/ui/MagneticButton';
 import AnimatedCounter from '../components/ui/AnimatedCounter';
 import AnimatedModal from '../components/ui/AnimatedModal';
 import TeleConsultModal from '../components/ui/TeleConsultModal';
+import ZeroSignalModal from '../components/ui/ZeroSignalModal';
+import AgentWidget from '../components/ui/AgentWidget';
 
 // --- OFFLINE SAFE ICONS ---
 const defaultIcon = L.divIcon({
@@ -72,12 +76,26 @@ const getEmergencyCode = (symptom) => {
 const PatientDashboard = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { t } = useLanguage();
   const { isOnline } = useNetworkState();
+  const [isConsultModalOpen, setIsConsultModalOpen] = useState(false);
+  const [showZeroSignalModal, setShowZeroSignalModal] = useState(false);
+
+  const handleAgentAction = (action) => {
+    console.log("Agent Action:", action);
+    if (action.type === 'EMERGENCY_SOS') {
+      triggerSOS();
+    } else if (action.type === 'ZERO_SIGNAL_SOS') {
+      setShowZeroSignalModal(true);
+    }
+  };
+
   const [lowDataMode, setLowDataMode] = useState(false);
   const [socket, setSocket] = useState(null);
   const [symptoms, setSymptoms] = useState('');
   const [status, setStatus] = useState('IDLE'); // IDLE, SEARCHING, ACCEPTED
   const [activeEmergencyId, setActiveEmergencyId] = useState(null);
+  const [activeEmergencyDetails, setActiveEmergencyDetails] = useState(null);
   const [responder, setResponder] = useState('');
   const [offline, setOffline] = useState(!navigator.onLine);
   const [simulateOffline, setSimulateOffline] = useState(false);
@@ -97,6 +115,9 @@ const PatientDashboard = () => {
   const [batteryLevel, setBatteryLevel] = useState(100);
   const [torchTrack, setTorchTrack] = useState(null);
   const [alarmAudio, setAlarmAudio] = useState(null);
+  const [abhaId, setAbhaId] = useState('');
+  const [abdmLoading, setAbdmLoading] = useState(false);
+  const [abdmSuccess, setAbdmSuccess] = useState(false);
 
   const { location, isTracking } = useLiveLocation();
 
@@ -149,6 +170,7 @@ const PatientDashboard = () => {
         setStatus('ACCEPTED');
         setResponder(data.role);
         setActiveEmergencyId(data.emergency_id);
+        newSocket.emit('request_emergencies');
       }
     });
 
@@ -164,6 +186,15 @@ const PatientDashboard = () => {
     newSocket.on('live_ambulance_location', (data) => {
       if (data.emergency_id === activeEmergencyId) {
          setLiveAmbulance(data);
+      }
+    });
+
+    newSocket.on('update_emergencies', (data) => {
+      if (activeEmergencyId) {
+        const currentEmergency = data.find(e => e.id === activeEmergencyId);
+        if (currentEmergency) {
+          setActiveEmergencyDetails(currentEmergency);
+        }
       }
     });
 
@@ -301,10 +332,36 @@ const PatientDashboard = () => {
       alarmAudio.pause();
       setAlarmAudio(null);
     } else {
-      const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+      // Upgraded to a longer, heavier siren noise (approx 8 seconds) from Wikimedia Commons
+      const audio = new Audio('https://upload.wikimedia.org/wikipedia/commons/4/4e/Siren_Noise.ogg');
       audio.loop = true;
       audio.play();
       setAlarmAudio(audio);
+    }
+  };
+
+  const syncABDM = async () => {
+    if (!abhaId || abhaId.replace(/-/g, '').length !== 14) {
+      alert("Please enter a valid 14-digit ABHA ID.");
+      return;
+    }
+    try {
+      setAbdmLoading(true);
+      const res = await api.post('/abdm/fetch-profile', {
+        abha_id: abhaId,
+        patient_id: user.id
+      });
+      setProfile(prev => ({
+        ...prev,
+        medical_history: `[ABDM SYNCED] ${res.data.data.medical_history} | Allergies: ${res.data.data.allergies} | Surgeries: ${res.data.data.past_surgeries}`,
+        blood_group: res.data.data.blood_group
+      }));
+      setAbdmSuccess(true);
+      setTimeout(() => setAbdmSuccess(false), 5000);
+    } catch (err) {
+      alert(err.response?.data?.msg || "Failed to sync with ABDM.");
+    } finally {
+      setAbdmLoading(false);
     }
   };
 
@@ -328,11 +385,10 @@ const PatientDashboard = () => {
         </div>
       )}
       
-      {/* Simulation Control (Demo Only) */}
       <div className="absolute top-24 left-4 z-50">
         <button 
           onClick={() => setSimulateOffline(!simulateOffline)}
-          className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-lg border ${simulateOffline ? 'bg-orange-500 text-white border-orange-600' : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'}`}
+          className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-md border ${simulateOffline ? 'bg-orange-500 text-white border-orange-600' : 'bg-white text-slate-500 border-slate-200 hover:text-slate-800'}`}
         >
           {simulateOffline ? '🟢 Network Outage Simulated' : '🔴 Simulate Network Outage'}
         </button>
@@ -362,10 +418,10 @@ const PatientDashboard = () => {
       )}
 
       {/* Header */}
-      <header className="premium-glass-nav p-6">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-100">Welcome, {user?.contact_info || "Bhogeswara Rao"}</h1>
+      <header className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 p-6 transition-colors">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4 md:gap-0 text-center md:text-left">
+          <div className="flex flex-col items-center md:items-start">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Welcome, {user?.contact_info || "Bhogeswara Rao"}</h1>
             <div className="flex items-center gap-2 mt-2">
               {profile ? (
                 <Badge variant={profile.risk_level === 'High' ? 'danger' : profile.risk_level === 'Medium' ? 'warning' : 'success'}>
@@ -376,17 +432,18 @@ const PatientDashboard = () => {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-4">
             <button 
               onClick={() => setLowDataMode(!lowDataMode)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${lowDataMode ? 'bg-orange-500/20 text-orange-400 border-orange-500/50' : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'}`}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${lowDataMode ? 'bg-orange-50 text-orange-500 border-orange-200 dark:bg-orange-900/30 dark:border-orange-700/50 dark:text-orange-400' : 'bg-white text-slate-500 border-slate-200 hover:text-slate-800 shadow-sm dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:text-white'}`}
             >
               <Activity size={14} className={lowDataMode ? 'animate-pulse' : ''} />
               2G/Low Data Mode
             </button>
+            <LanguageToggle />
             <ThemeToggle />
-            <Button variant="ghost" size="sm" onClick={logout} className="text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10">
-              Logout
+            <Button variant="ghost" size="sm" onClick={logout} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
+              {t('app.logout')}
             </Button>
           </div>
         </div>
@@ -408,21 +465,27 @@ const PatientDashboard = () => {
           <div className="lg:col-span-2 space-y-8">
             
             {/* Emergency SOS Card */}
-            <div className="premium-glass-panel p-8 relative overflow-hidden bg-gradient-to-br from-red-950/40 to-slate-900 border-red-500/30 animate-scale-in shadow-[0_0_40px_rgba(239,68,68,0.1)]">
-              <div className="absolute top-0 right-0 w-48 h-48 bg-red-600/15 rounded-full blur-3xl animate-pulse-fast"></div>
+            <div className="bg-white dark:bg-slate-900 border-slate-200 dark:border-red-900/30 backdrop-blur-xl rounded-3xl p-8 relative overflow-hidden border animate-scale-in shadow-soft-lg transition-colors">
+              <div className="absolute top-0 right-0 w-48 h-48 bg-red-100 dark:bg-red-900/10 rounded-full blur-3xl animate-pulse-fast"></div>
 
               <div className="flex items-center gap-5 mb-8 relative z-10">
-                <div className="w-16 h-16 rounded-2xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-500 shadow-inner drop-shadow-lg">
+                <div className="w-16 h-16 rounded-2xl bg-red-50 dark:bg-red-900/30 border border-red-100 dark:border-red-800 flex items-center justify-center text-red-500 dark:text-red-400 shadow-sm">
                   <AlertCircle size={36} />
                 </div>
                 <div>
-                  <h2 className="text-3xl md:text-4xl font-black text-red-400 tracking-tight drop-shadow-md">EMERGENCY SOS</h2>
+                  <h2 className="text-3xl md:text-4xl font-black text-red-500 dark:text-red-400 tracking-tight">{t('patient.sos.active') || 'EMERGENCY SOS'}</h2>
                   <div className="flex flex-wrap items-center gap-3 mt-2">
-                    {isTracking && (
-                      <Badge variant="success" className="animate-pulse">Live Tracking</Badge>
+                    {isTracking ? (
+                      <Badge variant="success" className="animate-pulse flex items-center gap-1 border-green-500/50 bg-green-500/10 text-green-700 dark:text-green-400">
+                        <Navigation size={12}/> NavIC Satellite Lock (±2m)
+                      </Badge>
+                    ) : (
+                      <Badge variant="warning" className="flex items-center gap-1 border-yellow-500/50 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400">
+                        <Navigation size={12}/> Acquiring NavIC...
+                      </Badge>
                     )}
-                    <p className="text-sm text-red-300/80 font-medium flex items-center gap-1.5 bg-red-500/10 px-2 py-1 rounded-md border border-red-500/20">
-                      <MapPin size={14} className="text-red-400" />
+                    <p className="text-sm text-red-700 dark:text-red-300 font-medium flex items-center gap-1.5 bg-red-50 dark:bg-red-900/30 px-2 py-1 rounded-md border border-red-100 dark:border-red-800">
+                      <MapPin size={14} className="text-red-500 dark:text-red-400" />
                       {locationName}
                     </p>
                   </div>
@@ -434,25 +497,25 @@ const PatientDashboard = () => {
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
                     {[
                       { icon: '🫀', label: 'Heart Conditions', color: 'red' },
-                      { icon: '🐍', label: 'Bites & Toxins', color: 'green' },
+                      { icon: '🐍', label: 'Bites & Toxins', color: 'emerald' },
                       { icon: '🤰', label: 'Pregnancy', color: 'purple' },
-                      { icon: '💨', label: 'Airway & Breathing', color: 'blue' },
+                      { icon: '💨', label: 'Airway & Breathing', color: 'sky' },
                       { icon: '🩸', label: 'Trauma & Bleeding', color: 'orange' }
                     ].map((symptom, idx) => (
                       <button 
                         key={idx}
                         onClick={() => { setSymptoms(symptom.label); triggerSOS(); }} 
-                        className={`bg-slate-900/50 backdrop-blur-md border border-slate-700 rounded-xl p-3 flex flex-col items-center justify-center gap-2 hover:bg-${symptom.color}-500/20 hover:border-${symptom.color}-500/50 hover:shadow-[0_0_15px_rgba(var(--color-${symptom.color}-500),0.2)] transition-all group`}
+                        className={`bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-white/10 shadow-sm rounded-xl p-3 flex flex-col items-center justify-center gap-2 hover:bg-${symptom.color}-50 dark:hover:bg-${symptom.color}-900/30 border transition-all group`}
                       >
-                        <span className="text-3xl group-hover:scale-110 transition-transform drop-shadow-md">{symptom.icon}</span>
-                        <span className={`text-${symptom.color}-400 font-bold text-xs text-center leading-tight`}>{symptom.label}</span>
+                        <span className="text-3xl group-hover:scale-110 transition-transform">{symptom.icon}</span>
+                        <span className={`text-${symptom.color}-600 dark:text-${symptom.color}-400 font-bold text-xs text-center leading-tight`}>{symptom.label}</span>
                       </button>
                     ))}
                   </div>
                   
                   <div className="relative mb-6">
-                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10"></div></div>
-                    <div className="relative flex justify-center text-xs"><span className="bg-slate-900 px-4 text-slate-400 uppercase tracking-widest font-bold rounded-full border border-white/10">Or specify details</span></div>
+                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200 dark:border-slate-800"></div></div>
+                    <div className="relative flex justify-center text-xs"><span className="bg-white dark:bg-slate-900 px-4 text-slate-500 uppercase tracking-widest font-bold rounded-full border border-slate-200 dark:border-white/10 transition-colors">Or specify details</span></div>
                   </div>
 
                   <div className="relative mb-6">
@@ -460,7 +523,7 @@ const PatientDashboard = () => {
                       <select 
                         value={voiceLang}
                         onChange={(e) => setVoiceLang(e.target.value)}
-                        className="bg-slate-900 border border-slate-700 text-slate-300 text-xs rounded-lg px-2 py-1 focus:outline-none"
+                        className="bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-white/10 border text-slate-700 dark:text-slate-300 text-xs rounded-lg px-2 py-1 focus:outline-none transition-colors"
                       >
                         <option value="en-US">English</option>
                         <option value="te-IN">Telugu</option>
@@ -469,15 +532,15 @@ const PatientDashboard = () => {
                       </select>
                     </div>
                     <textarea 
-                      className="w-full bg-slate-950/60 backdrop-blur-md border border-white/10 rounded-2xl p-5 pr-14 text-white placeholder:text-slate-500 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/50 transition-all resize-none shadow-inner"
-                      placeholder="Describe your emergency or use the mic..."
+                      className="w-full bg-slate-50/50 dark:bg-slate-800/50 backdrop-blur-md border-slate-200 dark:border-white/10 border rounded-2xl p-5 pr-14 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-red-300 dark:focus:border-red-500 focus:ring-1 focus:ring-red-300 dark:focus:ring-red-500 transition-all resize-none shadow-inner"
+                      placeholder={t('patient.symptoms.label')}
                       value={symptoms}
                       onChange={(e) => setSymptoms(e.target.value)}
                       rows="3"
                     />
                     <button 
                       onClick={startRecording}
-                      className={`absolute right-4 top-4 p-3 rounded-full transition-colors ${isRecording ? 'bg-red-500 text-white animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.6)]' : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700'}`}
+                      className={`absolute right-4 top-10 p-3 rounded-full transition-colors ${isRecording ? 'bg-red-500 text-white animate-pulse shadow-md' : 'bg-white dark:bg-slate-700 border border-white/10 text-slate-400 dark:text-slate-300 hover:text-slate-600 dark:hover:text-white shadow-sm'}`}
                     >
                       <Mic size={20} />
                     </button>
@@ -490,16 +553,16 @@ const PatientDashboard = () => {
                     disabled={!symptoms}
                     className="w-full py-5 text-xl font-black tracking-widest uppercase animate-glow-pulse disabled:animate-none border-red-500 hover:bg-red-500 shadow-[0_0_40px_rgba(239,68,68,0.5)] hover:shadow-[0_0_60px_rgba(239,68,68,0.7)] transition-all mb-8"
                   >
-                    Broadcast SOS Now
+                    {t('patient.sos.trigger')}
                   </MagneticButton>
 
                   {/* OFFLINE LIFESAVER TOOLS */}
                   <div className="grid grid-cols-3 gap-4 border-t border-white/10 pt-6">
                     <button 
                       onClick={toggleFlashlight}
-                      className={`flex flex-col items-center justify-center p-4 rounded-2xl transition-all border ${torchTrack ? 'bg-yellow-500/20 border-yellow-500/50 text-yellow-400' : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                      className={`flex flex-col items-center justify-center p-4 rounded-2xl transition-all border ${torchTrack ? 'bg-yellow-100 dark:bg-yellow-500/20 border-yellow-500/50 text-yellow-600 dark:text-yellow-400' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white'}`}
                     >
-                      <div className={`p-3 rounded-full mb-2 ${torchTrack ? 'bg-yellow-500 text-slate-900 shadow-[0_0_20px_rgba(234,179,8,0.6)]' : 'bg-slate-800'}`}>
+                      <div className={`p-3 rounded-full mb-2 ${torchTrack ? 'bg-yellow-400 dark:bg-yellow-500 text-slate-900 shadow-[0_0_20px_rgba(234,179,8,0.6)]' : 'bg-slate-200 dark:bg-slate-700'}`}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11.5 9H9.5L12.5 2H15.5L11.5 9Z"/><path d="M13 14H15L12 21L9 21L13 14Z"/><rect x="7" y="9" width="10" height="5" rx="1"/></svg>
                       </div>
                       <span className="text-xs font-bold">Flashlight</span>
@@ -547,47 +610,73 @@ const PatientDashboard = () => {
               )}
 
               {status === 'ACCEPTED' && (
-                <div className="text-center py-12 relative z-10 animate-fade-in-up w-full">
-                  <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-500/30 shadow-[0_0_50px_rgba(34,197,94,0.3)] animate-pulse-fast">
-                    <CheckCircle2 size={40} className="text-green-400 drop-shadow-[0_0_15px_rgba(34,197,94,0.8)]" />
-                  </div>
-                  <h3 className="text-3xl font-black text-green-400 mb-2 tracking-tight">Help is on the way!</h3>
+                <div className="relative z-10 animate-fade-in-up w-full h-[75vh] md:h-[80vh] rounded-[2rem] overflow-hidden border border-white/10 shadow-[0_20px_80px_rgba(0,0,0,0.8)] flex flex-col group mt-4">
                   
                   {liveAmbulance ? (
-                    <div className="flex flex-col md:flex-row gap-6 mb-8 mt-6">
-                       <div className="flex-1 bg-slate-900/60 border border-slate-700/50 rounded-2xl p-5 shadow-xl text-left">
-                         <p className="text-slate-400 uppercase tracking-widest text-xs font-bold mb-4 flex items-center gap-2"><Truck size={16}/> Live Updates</p>
-                         <div className="flex justify-between items-center bg-slate-950/50 p-4 rounded-xl border border-white/5 mb-4">
-                           <span className="text-slate-500 font-bold text-xs">Distance Away</span>
-                           <span className="text-xl font-black text-slate-200">{liveAmbulance.distance_left} km</span>
+                    <>
+                      {/* FULL SCREEN MAP */}
+                      <div className={`absolute inset-0 w-full h-full z-0 ${lowDataMode ? 'bg-slate-900' : 'grayscale-[20%] contrast-125'}`}>
+                        <MapboxGlobe 
+                          location={location} 
+                          ambulance={liveAmbulance} 
+                          hospital={activeEmergencyDetails?.hospital_location} 
+                        />
+                      </div>
+                      
+                      {/* Top Gradient Overlay */}
+                      <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-slate-950 via-slate-900/60 to-transparent z-10 pointer-events-none"></div>
+                      
+                      {/* Bottom Gradient Overlay (For Bottom Sheet) */}
+                      <div className="absolute bottom-0 left-0 right-0 h-64 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent z-10 pointer-events-none"></div>
+
+                      {/* Header Status - Floating Top */}
+                      <div className="absolute top-6 left-0 right-0 z-20 flex flex-col items-center pointer-events-none px-4">
+                        <div className="bg-green-500/20 backdrop-blur-md border border-green-500/40 rounded-full px-6 py-2 shadow-[0_0_30px_rgba(34,197,94,0.3)] animate-pulse-fast flex items-center gap-3">
+                          <CheckCircle2 size={20} className="text-green-400 drop-shadow-[0_0_10px_rgba(34,197,94,0.8)]" />
+                          <span className="font-bold tracking-widest text-green-300 uppercase text-xs md:text-sm">Help is on the way</span>
+                        </div>
+                      </div>
+
+                      {/* Bottom Sheet - Floating Cards */}
+                      <div className="absolute bottom-0 left-0 right-0 z-30 p-4 md:p-6 w-full max-w-4xl mx-auto flex flex-col md:flex-row gap-4 items-end">
+                        
+                         {/* Live Updates Card */}
+                         <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 rounded-[1.5rem] p-5 shadow-2xl text-left flex-1 w-full animate-fade-in-up">
+                           <p className="text-slate-400 uppercase tracking-widest text-xs font-bold mb-4 flex items-center gap-2"><Truck size={16}/> Live Updates</p>
+                           <div className="flex gap-4">
+                             <div className="flex-1 bg-slate-950/50 p-4 rounded-xl border border-white/5">
+                               <span className="text-slate-500 font-bold text-[10px] uppercase tracking-widest block mb-1">Distance</span>
+                               <span className="text-xl md:text-2xl font-black text-slate-200">{liveAmbulance.distance_left} km</span>
+                             </div>
+                             <div className="flex-1 bg-orange-950/40 p-4 rounded-xl border border-orange-500/30 shadow-[0_0_20px_rgba(249,115,22,0.1)] relative overflow-hidden">
+                               <div className="absolute inset-0 bg-gradient-to-tr from-orange-500/10 to-transparent"></div>
+                               <span className="text-orange-500/80 font-bold text-[10px] uppercase tracking-widest block mb-1 relative z-10">Live ETA</span>
+                               <span className="text-2xl md:text-3xl font-black text-orange-400 animate-pulse relative z-10">{liveAmbulance.eta_left} min</span>
+                             </div>
+                           </div>
                          </div>
-                         <div className="flex justify-between items-center bg-orange-950/30 p-4 rounded-xl border border-orange-500/20">
-                           <span className="text-orange-500/70 font-bold text-xs uppercase">Live ETA</span>
-                           <span className="text-2xl font-black text-orange-400 animate-pulse">{liveAmbulance.eta_left} mins</span>
-                         </div>
-                       </div>
-                       
-                       <div className={`flex-1 h-64 rounded-3xl overflow-hidden border-2 border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.6)] relative group ${lowDataMode ? 'bg-slate-900' : ''}`}>
-                          <MapContainer center={location && location.lat ? [location.lat, location.lng] : [17.3850, 78.4867]} zoom={13} style={{ height: '100%', width: '100%' }} zoomControl={false} className={lowDataMode ? '' : 'grayscale-[30%] contrast-125'}>
-                            {!lowDataMode && (
-                              <TileLayer url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}" attribution="&copy; Google Maps" />
-                            )}
-                            {location && location.lat && (
-                               <Marker position={[location.lat, location.lng]} icon={redIcon}>
-                                  <Popup>You</Popup>
-                               </Marker>
-                            )}
-                            <Marker position={[liveAmbulance.lat, liveAmbulance.lng]} icon={ambulanceIcon} zIndexOffset={1000}>
-                               <Popup>Ambulance</Popup>
-                            </Marker>
-                          </MapContainer>
-                          <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_50px_rgba(2,6,23,0.9)] z-[400]"></div>
-                       </div>
-                    </div>
+                         
+                         {/* Responding Hospital Card */}
+                         {activeEmergencyDetails && activeEmergencyDetails.hospital_name && (
+                           <div className="bg-blue-900/40 backdrop-blur-xl border border-blue-500/40 rounded-[1.5rem] p-5 shadow-2xl text-left flex-1 w-full animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+                             <p className="text-blue-400/90 uppercase tracking-widest text-[10px] font-bold mb-3 flex items-center gap-2">🏥 Responding Hospital</p>
+                             <h4 className="text-lg md:text-xl font-bold text-blue-100 mb-1 leading-tight">{activeEmergencyDetails.hospital_name}</h4>
+                             <p className="text-blue-300/70 text-xs mb-4 font-medium">Emergency Ward is pre-alerted and ready.</p>
+                             <Button variant="outline" className="w-full text-xs py-2.5 border-blue-500/50 text-blue-300 hover:bg-blue-500/30 hover:text-white bg-blue-950/50 shadow-inner">
+                               <Phone size={14} className="mr-2" /> Contact Hospital
+                             </Button>
+                           </div>
+                         )}
+                      </div>
+                    </>
                   ) : (
-                    <p className="text-slate-300 text-lg mb-8 bg-slate-900/50 p-4 rounded-xl inline-block border border-slate-700">Connecting to live tracker...</p>
+                    <div className="flex items-center justify-center h-full bg-slate-900/80 backdrop-blur-md">
+                      <div className="text-center">
+                        <div className="w-16 h-16 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
+                        <p className="text-slate-300 text-lg font-bold tracking-wide">Connecting to live tracker...</p>
+                      </div>
+                    </div>
                   )}
-                  
                   {/* Phase 4: Smart Routing Prompts */}
                   {!movingStatus && (
                     <div className="bg-slate-900/80 border border-slate-700 rounded-2xl p-6 text-left max-w-lg mx-auto shadow-xl">
@@ -642,98 +731,98 @@ const PatientDashboard = () => {
             {/* Feature Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in-up stagger-1">
               <Link to="/patient/assistant" className="h-full">
-                <InteractiveCard glowColor="rgba(59, 130, 246, 0.15)" className="h-full flex flex-col items-start group p-6">
+                <InteractiveCard glowColor="rgba(59, 130, 246, 0.15)" className="h-full flex flex-col items-start group p-6 dark:bg-slate-900 dark:border-slate-800">
                   <div className="p-3 bg-blue-500/10 rounded-xl mb-4 border border-blue-500/20 text-blue-400 group-hover:scale-110 transition-transform shadow-inner"><Activity size={24}/></div>
-                  <h3 className="font-bold text-base mb-1 text-slate-200 group-hover:text-blue-400 transition-colors leading-tight">AI Assistant</h3>
+                  <h3 className="font-bold text-base mb-1 text-slate-100 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors leading-tight">{t('patient.assistant')}</h3>
                   <p className="text-xs text-slate-400 mt-auto">Symptom analysis</p>
                 </InteractiveCard>
               </Link>
               <Link to="/medicine-search" className="h-full">
-                <InteractiveCard glowColor="rgba(20, 184, 166, 0.15)" className="h-full flex flex-col items-start group p-6">
+                <InteractiveCard glowColor="rgba(20, 184, 166, 0.15)" className="h-full flex flex-col items-start group p-6 dark:bg-slate-900 dark:border-slate-800">
                   <div className="p-3 bg-teal-500/10 rounded-xl mb-4 border border-teal-500/20 text-teal-400 group-hover:scale-110 transition-transform shadow-inner"><Pill size={24}/></div>
-                  <h3 className="font-bold text-base mb-1 text-slate-200 group-hover:text-teal-400 transition-colors leading-tight">Medicines</h3>
+                  <h3 className="font-bold text-base mb-1 text-slate-100 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors leading-tight">Medicines</h3>
                   <p className="text-xs text-slate-400 mt-auto">Find nearby stock</p>
                 </InteractiveCard>
               </Link>
               <Link to="/health-records" className="h-full">
-                <InteractiveCard glowColor="rgba(168, 85, 247, 0.15)" className="h-full flex flex-col items-start group p-6">
+                <InteractiveCard glowColor="rgba(168, 85, 247, 0.15)" className="h-full flex flex-col items-start group p-6 dark:bg-slate-900 dark:border-slate-800">
                   <div className="p-3 bg-purple-500/10 rounded-xl mb-4 border border-purple-500/20 text-purple-400 group-hover:scale-110 transition-transform shadow-inner"><History size={24}/></div>
-                  <h3 className="font-bold text-base mb-1 text-slate-200 group-hover:text-purple-400 transition-colors leading-tight">Records</h3>
+                  <h3 className="font-bold text-base mb-1 text-slate-100 group-hover:text-purple-500 dark:group-hover:text-purple-400 transition-colors leading-tight">Records</h3>
                   <p className="text-xs text-slate-400 mt-auto">Medical history</p>
                 </InteractiveCard>
               </Link>
               <Link to="/health-map" className="h-full">
-                <InteractiveCard glowColor="rgba(34, 197, 94, 0.15)" className="h-full flex flex-col items-start group p-6">
+                <InteractiveCard glowColor="rgba(34, 197, 94, 0.15)" className="h-full flex flex-col items-start group p-6 dark:bg-slate-900 dark:border-slate-800">
                   <div className="p-3 bg-green-500/10 rounded-xl mb-4 border border-green-500/20 text-green-400 group-hover:scale-110 transition-transform shadow-inner"><Stethoscope size={24}/></div>
-                  <h3 className="font-bold text-base mb-1 text-slate-200 group-hover:text-green-400 transition-colors leading-tight">Hospitals</h3>
+                  <h3 className="font-bold text-base mb-1 text-slate-100 group-hover:text-green-500 dark:group-hover:text-green-400 transition-colors leading-tight">{t('patient.map')}</h3>
                   <p className="text-xs text-slate-400 mt-auto">Locate clinics</p>
                 </InteractiveCard>
               </Link>
             </div>
 
             {/* Quick SOS Contacts */}
-            <div className="premium-glass-panel p-6 relative overflow-hidden mt-8 animate-fade-in-up stagger-2 border-t-[3px] border-t-red-500/50">
-               <h3 className="font-bold text-xl mb-4 flex items-center gap-3"><Users className="text-red-400" size={24}/> Quick SOS Contacts</h3>
+            <div className="bg-white dark:bg-slate-900 border-slate-200 dark:border-red-900/30 backdrop-blur-xl rounded-3xl p-6 relative overflow-hidden mt-8 animate-fade-in-up stagger-2 border shadow-soft transition-colors">
+               <h3 className="font-bold text-xl mb-4 flex items-center gap-3 text-slate-900 dark:text-white"><Users className="text-red-500" size={24}/> Quick SOS Contacts</h3>
                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div 
                     onClick={() => window.location.href = 'tel:+919876543210'}
-                    className="bg-slate-900/60 p-4 rounded-2xl border border-white/5 flex items-center justify-between group hover:border-red-500/30 transition-all cursor-pointer shadow-inner active:scale-95"
+                    className="bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-white/10 flex items-center justify-between group hover:border-red-200 dark:hover:border-red-500/50 transition-all cursor-pointer shadow-sm hover:shadow active:scale-95"
                   >
                      <div>
-                        <p className="text-sm font-bold text-slate-200 group-hover:text-red-400 transition-colors">Wife</p>
-                        <p className="text-xs text-slate-500">Priya Sharma</p>
+                        <p className="text-sm font-bold text-slate-700 dark:text-slate-200 group-hover:text-red-500 dark:group-hover:text-red-400 transition-colors">Wife</p>
+                        <p className="text-xs text-slate-400">Priya Sharma</p>
                      </div>
-                     <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center text-red-400 group-hover:bg-red-500 group-hover:text-white transition-all"><Phone size={18}/></div>
+                     <div className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-900/30 flex items-center justify-center text-red-500 dark:text-red-400 group-hover:bg-red-500 group-hover:text-white transition-all"><Phone size={18}/></div>
                   </div>
                   <div 
                     onClick={() => window.location.href = 'tel:+919876543211'}
-                    className="bg-slate-900/60 p-4 rounded-2xl border border-white/5 flex items-center justify-between group hover:border-red-500/30 transition-all cursor-pointer shadow-inner active:scale-95"
+                    className="bg-[#1e293b] border-white/5 p-4 rounded-2xl border border-white/10 flex items-center justify-between group hover:border-red-200 dark:hover:border-red-500/50 transition-all cursor-pointer shadow-sm hover:shadow active:scale-95"
                   >
                      <div>
-                        <p className="text-sm font-bold text-slate-200 group-hover:text-red-400 transition-colors">Son</p>
-                        <p className="text-xs text-slate-500">Rahul Sharma</p>
+                        <p className="text-sm font-bold text-slate-200 group-hover:text-red-500 dark:group-hover:text-red-400 transition-colors">Son</p>
+                        <p className="text-xs text-slate-400">Rahul Sharma</p>
                      </div>
-                     <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center text-red-400 group-hover:bg-red-500 group-hover:text-white transition-all"><Phone size={18}/></div>
+                     <div className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-900/30 flex items-center justify-center text-red-500 dark:text-red-400 group-hover:bg-red-500 group-hover:text-white transition-all"><Phone size={18}/></div>
                   </div>
                   <div 
                     onClick={() => window.location.href = 'tel:+919876543212'}
-                    className="bg-slate-900/60 p-4 rounded-2xl border border-white/5 flex items-center justify-between group hover:border-red-500/30 transition-all cursor-pointer shadow-inner active:scale-95"
+                    className="bg-[#1e293b] border-white/5 p-4 rounded-2xl border border-white/10 flex items-center justify-between group hover:border-red-200 dark:hover:border-red-500/50 transition-all cursor-pointer shadow-sm hover:shadow active:scale-95"
                   >
                      <div>
-                        <p className="text-sm font-bold text-slate-200 group-hover:text-red-400 transition-colors">Family Doctor</p>
-                        <p className="text-xs text-slate-500">Dr. Vivek</p>
+                        <p className="text-sm font-bold text-slate-200 group-hover:text-red-500 dark:group-hover:text-red-400 transition-colors">Family Doctor</p>
+                        <p className="text-xs text-slate-400">Dr. Vivek</p>
                      </div>
-                     <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center text-red-400 group-hover:bg-red-500 group-hover:text-white transition-all"><Phone size={18}/></div>
+                     <div className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-900/30 flex items-center justify-center text-red-500 dark:text-red-400 group-hover:bg-red-500 group-hover:text-white transition-all"><Phone size={18}/></div>
                   </div>
                </div>
             </div>
 
             {/* Recent Health Timeline */}
-            <div className="premium-glass-panel p-6 relative overflow-hidden mt-8 animate-fade-in-up stagger-3 border-t-[3px] border-t-blue-500/50">
-               <h3 className="font-bold text-xl mb-6 flex items-center gap-3"><Clock className="text-blue-400" size={24}/> Recent Health Timeline</h3>
-               <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-700 before:to-transparent">
-                  <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                     <div className="flex items-center justify-center w-10 h-10 rounded-full border border-white bg-blue-500/20 text-blue-400 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
-                        <Activity size={16}/>
+            <div className="bg-[#0f172a] border-white/5 backdrop-blur-xl rounded-3xl p-6 relative overflow-hidden mt-8 animate-fade-in-up stagger-3 border border-sky-100 dark:border-sky-900/30 shadow-soft">
+               <h3 className="font-bold text-xl mb-6 flex items-center gap-3 dark:text-white"><Clock className="text-sky-500" size={24}/> Recent Health Timeline</h3>
+               <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 dark:before:via-slate-700 before:to-transparent">
+                  <div className="relative flex items-center gap-4 md:gap-0 md:justify-normal md:odd:flex-row-reverse group is-active">
+                     <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white dark:border-slate-900 bg-blue-100 dark:bg-blue-900/50 text-blue-500 dark:text-blue-400 shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm relative z-10 group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                        <Activity size={16} />
                      </div>
-                     <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-2xl bg-slate-900/60 border border-white/5 shadow-inner">
+                     <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-[#1e293b] border-white/5 p-4 rounded-2xl border border-white/10 shadow-sm hover:shadow group-hover:border-blue-200 dark:group-hover:border-blue-500/50 transition-all text-left">
                         <div className="flex items-center justify-between mb-1">
-                           <div className="font-bold text-slate-200">Tele-Consultation</div>
-                           <time className="font-mono text-xs text-blue-400">Today, 10:30 AM</time>
+                           <h4 className="font-bold text-slate-100">ECG Normal</h4>
+                           <span className="text-xs text-slate-400 font-medium">2 hrs ago</span>
                         </div>
-                        <div className="text-slate-400 text-sm">Consulted with Dr. Vivek regarding mild chest pain. Prescribed rest and ECG.</div>
+                        <p className="text-sm text-slate-400">Regular checkup showed stable heart rate at 72 BPM.</p>
                      </div>
                   </div>
-                  <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                     <div className="flex items-center justify-center w-10 h-10 rounded-full border border-white bg-slate-800 text-slate-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
-                        <Pill size={16}/>
+                  <div className="relative flex items-center gap-4 md:gap-0 md:justify-normal md:odd:flex-row-reverse group">
+                     <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white dark:border-slate-900 bg-teal-100 dark:bg-teal-900/50 text-teal-500 dark:text-teal-400 shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm relative z-10 group-hover:bg-teal-500 group-hover:text-white transition-colors">
+                        <Pill size={16} />
                      </div>
-                     <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-2xl bg-slate-900/40 border border-white/5 shadow-inner opacity-70 hover:opacity-100 transition-opacity">
+                     <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-[#1e293b] border-white/5 p-4 rounded-2xl border border-white/10 shadow-sm hover:shadow group-hover:border-teal-200 dark:group-hover:border-teal-500/50 transition-all text-left">
                         <div className="flex items-center justify-between mb-1">
-                           <div className="font-bold text-slate-200">Prescription Refill</div>
-                           <time className="font-mono text-xs text-slate-500">Aug 2, 2026</time>
+                           <h4 className="font-bold text-slate-100">Prescription Refill</h4>
+                           <span className="text-xs text-slate-400 font-medium">Yesterday</span>
                         </div>
-                        <div className="text-slate-400 text-sm">Refilled BP medication (Amlodipine 5mg) from Apollo Pharmacy.</div>
+                        <p className="text-sm text-slate-400">Metformin 500mg renewed by Dr. Reddy.</p>
                      </div>
                   </div>
                </div>
@@ -741,203 +830,49 @@ const PatientDashboard = () => {
 
           </div>
 
+
+
           {/* Side Column - Specialized Care Modules */}
           <div className="space-y-6 animate-fade-in-up stagger-2">
             
-            {/* ASHA Worker Widget */}
-            <div className="premium-glass-panel p-6 border-t-[3px] border-t-purple-500/50">
-              <h3 className="font-bold text-xl mb-4 flex items-center gap-3"><UserPlus className="text-purple-400" size={24}/> Local ASHA Worker</h3>
-              <div className="bg-slate-800/50 rounded-2xl border border-white/5 p-4 shadow-inner">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center border border-purple-500/40 text-purple-400">
-                    <img src="https://i.pravatar.cc/150?img=5" alt="ASHA Worker" className="w-full h-full rounded-full object-cover" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-slate-200">Lakshmi Devi</h4>
-                    <p className="text-xs text-slate-400">Village Health Guide</p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" className="flex-1 text-xs border-purple-500/30 text-purple-300 hover:bg-purple-500/10"><PhoneCall size={14} className="mr-2"/> Call</Button>
-                  <Button variant="primary" className="flex-1 text-xs bg-purple-600 hover:bg-purple-500" onClick={() => setShowTeleConsult(true)}><Video size={14} className="mr-2"/> E-Consult</Button>
-                </div>
-              </div>
-            </div>
-
-            {/* MMU Tracker Widget */}
-            <div className="premium-glass-panel p-6 border-t-[3px] border-t-blue-500/50">
-              <h3 className="font-bold text-xl mb-4 flex items-center gap-3"><Truck className="text-blue-400" size={24}/> Mobile Medical Unit</h3>
-              <div className="bg-blue-900/20 border border-blue-500/30 rounded-2xl p-4 relative overflow-hidden">
-                <div className="absolute right-0 top-0 w-24 h-24 bg-blue-500/10 rounded-full blur-xl"></div>
-                <p className="text-sm font-bold text-blue-300 mb-1">Next Village Visit</p>
-                <p className="text-2xl font-black text-white mb-2">Tomorrow, 10 AM</p>
-                <div className="flex items-center gap-2 text-xs text-slate-300 bg-slate-900/50 p-2 rounded-lg border border-white/5">
-                  <MapPin size={14} className="text-blue-400"/> Primary School Ground
-                </div>
-              </div>
-            </div>
-
-            {/* Medication Reminders */}
-            <div className="premium-glass-panel p-6 border-t-[3px] border-t-green-500/50">
-              <h3 className="font-bold text-xl mb-6 flex items-center gap-3"><Pill className="text-green-400" size={24}/> Medication Reminders</h3>
+            {/* ABDM Health ID Sync */}
+            <div className="bg-white rounded-3xl p-6 border border-emerald-100 shadow-soft">
+              <h3 className="font-bold text-xl mb-4 flex items-center gap-3"><Database className="text-emerald-500" size={24}/> ABDM Health-ID</h3>
+              <p className="text-xs text-slate-500 mb-4">Sync your electronic health records securely via India's Ayushman Bharat Digital Mission.</p>
               <div className="space-y-3">
-                <div className="p-4 bg-slate-800/50 rounded-2xl flex justify-between items-center border border-white/5 shadow-inner hover:bg-slate-800 transition-colors cursor-pointer group">
-                  <div><p className="text-sm font-bold text-slate-200 group-hover:text-green-300 transition-colors">Morning Meds</p><p className="text-xs text-slate-400 mt-1">Metformin, Amlodipine</p></div>
-                  <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center border border-green-500/30 text-green-400 shadow-[0_0_10px_rgba(34,197,94,0.2)]"><CheckCircle2 size={16}/></div>
-                </div>
-                <div className="p-4 bg-slate-800/50 rounded-2xl flex justify-between items-center border border-white/5 shadow-inner hover:bg-slate-800 transition-colors cursor-pointer group">
-                  <div><p className="text-sm font-bold text-slate-200 group-hover:text-green-300 transition-colors">Afternoon Meds</p><p className="text-xs text-slate-400 mt-1">Vitamin D, B12</p></div>
-                  <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center border border-green-500/30 text-green-400 shadow-[0_0_10px_rgba(34,197,94,0.2)]"><CheckCircle2 size={16}/></div>
-                </div>
-                <div className="p-4 bg-green-500/10 rounded-2xl flex justify-between items-center border border-green-500/30 shadow-[0_0_15px_rgba(34,197,94,0.1)] hover:shadow-[0_0_20px_rgba(34,197,94,0.3)] transition-shadow cursor-pointer">
-                  <div><p className="text-sm font-bold text-green-400">Night Meds</p><p className="text-xs text-green-400/70 mt-1">Atorvastatin (Take in 2 hrs)</p></div>
-                  <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center border border-green-500/50 text-green-400 animate-pulse"><Pill size={14}/></div>
-                </div>
+                <input 
+                  type="text" 
+                  placeholder="Enter 14-digit ABHA ID (e.g. 12-3456-7890-1234)" 
+                  value={abhaId}
+                  onChange={(e) => setAbhaId(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 text-sm text-slate-700 px-4 py-2 rounded-xl focus:outline-none focus:border-emerald-300"
+                />
+                <Button 
+                  variant="primary" 
+                  className="w-full bg-emerald-500 hover:bg-emerald-600 flex items-center justify-center gap-2 text-white"
+                  onClick={syncABDM}
+                  disabled={abdmLoading}
+                >
+                  {abdmLoading ? <Activity size={16} className="animate-spin" /> : <Database size={16}/>}
+                  {abdmLoading ? 'Syncing...' : 'Sync Health Records'}
+                </Button>
+                {abdmSuccess && (
+                  <div className="text-xs font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 p-2 rounded-lg flex items-center justify-center gap-2 mt-2">
+                    <CheckCircle2 size={14} /> Records synchronized securely!
+                  </div>
+                )}
+                {profile?.medical_history?.includes('[ABDM SYNCED]') && (
+                  <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-xs text-slate-300 mt-2 h-32 overflow-y-auto">
+                    <span className="font-bold text-emerald-400 block mb-1">Synced Medical History:</span>
+                    {profile.medical_history.replace('[ABDM SYNCED]', '').split('|').map((item, i) => (
+                      <div key={i} className="mb-1 bg-slate-900/50 px-2 py-1 rounded border border-white/5">{item.trim()}</div>
+                    ))}
+                    <div className="mt-2 bg-slate-900/50 px-2 py-1 rounded border border-white/5"><span className="font-bold">Blood Group:</span> {profile.blood_group}</div>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Mother & Child */}
-            <div className="premium-glass-panel p-6 border-t-[3px] border-t-pink-500/50">
-              <h3 className="font-bold text-xl mb-6 flex items-center gap-3"><Baby className="text-pink-400" size={24}/> Mother & Child</h3>
-              <div className="flex justify-between items-end mb-6 p-5 bg-slate-800/50 rounded-2xl border border-white/5 shadow-inner">
-                <div>
-                  <p className="text-xs text-slate-400 uppercase tracking-wider font-bold mb-1">Pregnancy Wk</p>
-                  <p className="text-3xl font-black text-pink-400">Wk 24</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-slate-400 uppercase tracking-wider font-bold mb-1">Health Score</p>
-                  <p className="text-2xl font-bold text-green-400">85%</p>
-                </div>
-              </div>
-              <div className="p-4 bg-pink-500/10 border border-pink-500/30 rounded-xl text-sm flex items-center justify-between">
-                <span className="font-bold text-pink-400 flex items-center gap-2"><CheckCircle2 size={16}/> Next Vax:</span> 
-                <span className="font-medium text-slate-200">12 Aug (TT)</span>
-              </div>
-            </div>
-
-            {/* Weather Alerts */}
-            <div className="premium-glass-panel p-6 border-t-[3px] border-t-yellow-500/50 overflow-hidden">
-              <h3 className="font-bold text-xl mb-6 flex items-center gap-3 relative z-10"><ThermometerSun className="text-yellow-400" size={24}/> Health Alerts</h3>
-              <div className="p-5 bg-gradient-to-br from-yellow-500/20 to-orange-500/10 border border-yellow-500/30 rounded-2xl relative overflow-hidden shadow-inner">
-                  {movingStatus === 'NO' && (
-                    <div className="bg-orange-900/30 border border-orange-500/50 rounded-2xl p-6 text-left max-w-sm mx-auto shadow-[0_0_30px_rgba(249,115,22,0.2)] mt-4">
-                      <p className="text-base font-bold text-orange-300 flex items-center gap-2 mb-3"><AlertCircle size={20} /> STAY PUT</p>
-                      <p className="text-white font-medium text-sm leading-relaxed">A doctor will call you shortly to guide you on keeping the patient safe until the {responder} arrives.</p>
-                    </div>
-                  )}
-
-                  <Button variant="ghost" onClick={() => {setStatus('IDLE'); setSymptoms(''); setMovingStatus(null); setSmartRoute(null); setActiveEmergencyId(null);}} className="mt-8 mx-auto">
-                    Dismiss Alert
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {/* Feature Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in-up stagger-1">
-              <Link to="/patient/assistant" className="h-full">
-                <InteractiveCard glowColor="rgba(59, 130, 246, 0.15)" className="h-full flex flex-col items-start group p-6">
-                  <div className="p-3 bg-blue-500/10 rounded-xl mb-4 border border-blue-500/20 text-blue-400 group-hover:scale-110 transition-transform shadow-inner"><Activity size={24}/></div>
-                  <h3 className="font-bold text-base mb-1 text-slate-200 group-hover:text-blue-400 transition-colors leading-tight">AI Assistant</h3>
-                  <p className="text-xs text-slate-400 mt-auto">Symptom analysis</p>
-                </InteractiveCard>
-              </Link>
-              <Link to="/medicine-search" className="h-full">
-                <InteractiveCard glowColor="rgba(20, 184, 166, 0.15)" className="h-full flex flex-col items-start group p-6">
-                  <div className="p-3 bg-teal-500/10 rounded-xl mb-4 border border-teal-500/20 text-teal-400 group-hover:scale-110 transition-transform shadow-inner"><Pill size={24}/></div>
-                  <h3 className="font-bold text-base mb-1 text-slate-200 group-hover:text-teal-400 transition-colors leading-tight">Medicines</h3>
-                  <p className="text-xs text-slate-400 mt-auto">Find nearby stock</p>
-                </InteractiveCard>
-              </Link>
-              <Link to="/health-records" className="h-full">
-                <InteractiveCard glowColor="rgba(168, 85, 247, 0.15)" className="h-full flex flex-col items-start group p-6">
-                  <div className="p-3 bg-purple-500/10 rounded-xl mb-4 border border-purple-500/20 text-purple-400 group-hover:scale-110 transition-transform shadow-inner"><History size={24}/></div>
-                  <h3 className="font-bold text-base mb-1 text-slate-200 group-hover:text-purple-400 transition-colors leading-tight">Records</h3>
-                  <p className="text-xs text-slate-400 mt-auto">Medical history</p>
-                </InteractiveCard>
-              </Link>
-              <Link to="/health-map" className="h-full">
-                <InteractiveCard glowColor="rgba(34, 197, 94, 0.15)" className="h-full flex flex-col items-start group p-6">
-                  <div className="p-3 bg-green-500/10 rounded-xl mb-4 border border-green-500/20 text-green-400 group-hover:scale-110 transition-transform shadow-inner"><Stethoscope size={24}/></div>
-                  <h3 className="font-bold text-base mb-1 text-slate-200 group-hover:text-green-400 transition-colors leading-tight">Hospitals</h3>
-                  <p className="text-xs text-slate-400 mt-auto">Locate clinics</p>
-                </InteractiveCard>
-              </Link>
-            </div>
-
-            {/* Quick SOS Contacts */}
-            <div className="premium-glass-panel p-6 relative overflow-hidden mt-8 animate-fade-in-up stagger-2 border-t-[3px] border-t-red-500/50">
-               <h3 className="font-bold text-xl mb-4 flex items-center gap-3"><Users className="text-red-400" size={24}/> Quick SOS Contacts</h3>
-               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div 
-                    onClick={() => window.location.href = 'tel:+919876543210'}
-                    className="bg-slate-900/60 p-4 rounded-2xl border border-white/5 flex items-center justify-between group hover:border-red-500/30 transition-all cursor-pointer shadow-inner active:scale-95"
-                  >
-                     <div>
-                        <p className="text-sm font-bold text-slate-200 group-hover:text-red-400 transition-colors">Wife</p>
-                        <p className="text-xs text-slate-500">Priya Sharma</p>
-                     </div>
-                     <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center text-red-400 group-hover:bg-red-500 group-hover:text-white transition-all"><Phone size={18}/></div>
-                  </div>
-                  <div 
-                    onClick={() => window.location.href = 'tel:+919876543211'}
-                    className="bg-slate-900/60 p-4 rounded-2xl border border-white/5 flex items-center justify-between group hover:border-red-500/30 transition-all cursor-pointer shadow-inner active:scale-95"
-                  >
-                     <div>
-                        <p className="text-sm font-bold text-slate-200 group-hover:text-red-400 transition-colors">Son</p>
-                        <p className="text-xs text-slate-500">Rahul Sharma</p>
-                     </div>
-                     <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center text-red-400 group-hover:bg-red-500 group-hover:text-white transition-all"><Phone size={18}/></div>
-                  </div>
-                  <div 
-                    onClick={() => window.location.href = 'tel:+919876543212'}
-                    className="bg-slate-900/60 p-4 rounded-2xl border border-white/5 flex items-center justify-between group hover:border-red-500/30 transition-all cursor-pointer shadow-inner active:scale-95"
-                  >
-                     <div>
-                        <p className="text-sm font-bold text-slate-200 group-hover:text-red-400 transition-colors">Family Doctor</p>
-                        <p className="text-xs text-slate-500">Dr. Vivek</p>
-                     </div>
-                     <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center text-red-400 group-hover:bg-red-500 group-hover:text-white transition-all"><Phone size={18}/></div>
-                  </div>
-               </div>
-            </div>
-
-            {/* Recent Health Timeline */}
-            <div className="premium-glass-panel p-6 relative overflow-hidden mt-8 animate-fade-in-up stagger-3 border-t-[3px] border-t-blue-500/50">
-               <h3 className="font-bold text-xl mb-6 flex items-center gap-3"><Clock className="text-blue-400" size={24}/> Recent Health Timeline</h3>
-               <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-700 before:to-transparent">
-                  <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                     <div className="flex items-center justify-center w-10 h-10 rounded-full border border-white bg-blue-500/20 text-blue-400 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
-                        <Activity size={16}/>
-                     </div>
-                     <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-2xl bg-slate-900/60 border border-white/5 shadow-inner">
-                        <div className="flex items-center justify-between mb-1">
-                           <div className="font-bold text-slate-200">Tele-Consultation</div>
-                           <time className="font-mono text-xs text-blue-400">Today, 10:30 AM</time>
-                        </div>
-                        <div className="text-slate-400 text-sm">Consulted with Dr. Vivek regarding mild chest pain. Prescribed rest and ECG.</div>
-                     </div>
-                  </div>
-                  <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                     <div className="flex items-center justify-center w-10 h-10 rounded-full border border-white bg-slate-800 text-slate-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
-                        <Pill size={16}/>
-                     </div>
-                     <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-2xl bg-slate-900/40 border border-white/5 shadow-inner opacity-70 hover:opacity-100 transition-opacity">
-                        <div className="flex items-center justify-between mb-1">
-                           <div className="font-bold text-slate-200">Prescription Refill</div>
-                           <time className="font-mono text-xs text-slate-500">Aug 2, 2026</time>
-                        </div>
-                        <div className="text-slate-400 text-sm">Refilled BP medication (Amlodipine 5mg) from Apollo Pharmacy.</div>
-                     </div>
-                  </div>
-               </div>
-            </div>
-
-          </div>
-
-          {/* Side Column - Specialized Care Modules */}
-          <div className="space-y-6 animate-fade-in-up stagger-2">
-            
             {/* ASHA Worker Widget */}
             <div className="premium-glass-panel p-6 border-t-[3px] border-t-purple-500/50">
               <h3 className="font-bold text-xl mb-4 flex items-center gap-3"><UserPlus className="text-purple-400" size={24}/> Local ASHA Worker</h3>
@@ -1064,6 +999,19 @@ const PatientDashboard = () => {
           </div>
         </div>
       </AnimatedModal>
+
+      {/* AI Agent Widget */}
+      <AgentWidget onAgentAction={handleAgentAction} voiceLang={voiceLang} />
+
+      {/* Zero Signal Simulation Modal */}
+      <ZeroSignalModal 
+        isOpen={showZeroSignalModal} 
+        onClose={() => setShowZeroSignalModal(false)}
+        onComplete={() => {
+          // Additional logic when satellite SOS completes could go here
+          console.log("Satellite SOS Delivered");
+        }}
+      />
 
     </div>
   );

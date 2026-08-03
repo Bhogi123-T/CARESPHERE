@@ -4,7 +4,7 @@ import uuid
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager, create_access_token
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from flask_socketio import join_room
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -12,6 +12,7 @@ from backend.controllers.analytics_controller import analytics_bp
 from backend.controllers.drone_controller import drone_bp
 from backend.controllers.emergency_controller import emergency_bp
 from backend.controllers.hospital_controller import hospital_bp
+from backend.controllers.agent_controller import agent_bp
 from backend.controllers.iot_controller import iot_bp
 from backend.controllers.ml_controller import ml_bp
 from backend.controllers.notification_controller import notification_bp
@@ -19,9 +20,9 @@ from backend.controllers.patient_controller import patient_bp
 from backend.controllers.pharmacy_controller import pharmacy_bp
 from backend.controllers.risk_controller import risk_bp
 from backend.controllers.smart_city_controller import smart_city_bp
+from backend.controllers.audit_controller import audit_bp
 from backend.extensions import db, socketio
-from backend.models import (BloodRequest, ChatMessage, Emergency,
-                            PatientProfile, User)
+from backend.models import BloodRequest, ChatMessage, Emergency, PatientProfile, User
 from utils.blockchain import create_audit_block
 from utils.notifications import NotificationService
 from backend.ml.realtime_inference import analyze_vitals_stream
@@ -49,17 +50,23 @@ socketio.init_app(app)
 jwt = JWTManager(app)
 
 # Register Blueprints
+app.register_blueprint(agent_bp, url_prefix="/api/agent")
 app.register_blueprint(risk_bp, url_prefix="/api")
 app.register_blueprint(emergency_bp, url_prefix="/api")
 app.register_blueprint(patient_bp, url_prefix="/api/patient")
 app.register_blueprint(analytics_bp, url_prefix="/api/analytics")
 app.register_blueprint(pharmacy_bp, url_prefix="/api/pharmacy")
 app.register_blueprint(ml_bp, url_prefix="/api/ml")
+app.register_blueprint(drone_bp, url_prefix="/api/drone")
 app.register_blueprint(hospital_bp, url_prefix="/api/hospital")
 app.register_blueprint(notification_bp, url_prefix="/api/notification")
-app.register_blueprint(iot_bp, url_prefix="/api/iot")
-app.register_blueprint(drone_bp, url_prefix="/api/drone")
 app.register_blueprint(smart_city_bp, url_prefix="/api/smart-city")
+app.register_blueprint(iot_bp, url_prefix="/api/iot")
+app.register_blueprint(audit_bp, url_prefix="/api/audit")
+
+from backend.controllers.abdm_controller import abdm_bp
+
+app.register_blueprint(abdm_bp, url_prefix="/api/abdm")
 
 # --- Error Handlers ---
 
@@ -69,15 +76,28 @@ def handle_exception(e):
     # Log the error (in production, use a proper logger)
     print(f"Global Error: {e}")
     # Return a generic JSON response
-    return jsonify({
-        "error": "Internal Server Error",
-        "message": str(e) if app.config["DEBUG"] else "An unexpected error occurred."
-    }), 500
+    return (
+        jsonify(
+            {
+                "error": "Internal Server Error",
+                "message": (
+                    str(e) if app.config["DEBUG"] else "An unexpected error occurred."
+                ),
+            }
+        ),
+        500,
+    )
 
 
 @app.errorhandler(404)
 def not_found(e):
-    return jsonify({"error": "Not Found", "message": "The requested resource was not found."}), 404
+    return (
+        jsonify(
+            {"error": "Not Found", "message": "The requested resource was not found."}
+        ),
+        404,
+    )
+
 
 # --- Authentication API Routes ---
 
@@ -126,12 +146,46 @@ def login():
 
     access_token = create_access_token(
         identity=str(user.id),
-        additional_claims={"role": user.role, "contact_info": user.contact_info}
+        additional_claims={"role": user.role, "contact_info": user.contact_info},
     )
     return jsonify(
         access_token=access_token,
-        user={"id": user.id, "role": user.role, "contact_info": user.contact_info},
+        user={
+            "id": user.id, 
+            "role": user.role, 
+            "contact_info": user.contact_info,
+            "name": user.name,
+            "address": user.address,
+            "profile_completed": user.profile_completed
+        },
     )
+
+@app.route("/api/auth/profile", methods=["POST"])
+@jwt_required()
+def update_profile():
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    data = request.json
+    user.name = data.get("name")
+    user.address = data.get("address")
+    user.profile_completed = True
+    
+    db.session.commit()
+    
+    return jsonify({
+        "msg": "Profile updated successfully",
+        "user": {
+            "id": user.id,
+            "role": user.role,
+            "contact_info": user.contact_info,
+            "name": user.name,
+            "address": user.address,
+            "profile_completed": user.profile_completed
+        }
+    }), 200
 
 
 # --- SocketIO Events ---
@@ -173,9 +227,7 @@ def handle_new_emergency(data):
         )
 
         # Phase 3: Simultaneous Alerts Simulation
-        patient_profile = PatientProfile.query.filter_by(
-            user_id=e_patient_id
-        ).first()
+        patient_profile = PatientProfile.query.filter_by(user_id=e_patient_id).first()
         family_contact = (
             patient_profile.family_contact if patient_profile else "UNKNOWN"
         )
@@ -187,32 +239,41 @@ def handle_new_emergency(data):
 
         if e_symptoms and "Vet Emergency" in e_symptoms:
             NotificationService.send_sms(
-                "HOSPITAL_NUMBER", f"VETERINARY MOBILE UNIT: Dispatch to {e_location_name}"
+                "HOSPITAL_NUMBER",
+                f"VETERINARY MOBILE UNIT: Dispatch to {e_location_name}",
             )
             NotificationService.send_sms(
-                "VOLUNTEER_NUMBER", f"LOCAL ASHA/VOLUNTEERS: Requested assistance at {e_location_name}"
+                "VOLUNTEER_NUMBER",
+                f"LOCAL ASHA/VOLUNTEERS: Requested assistance at {e_location_name}",
             )
             NotificationService.send_sms(
                 family_contact,
                 f"FAMILY: {patient_name} reported a Livestock Emergency! Track here: {google_maps_link}",
             )
         elif e_symptoms and "Pesticide" in e_symptoms:
-            NotificationService.send_sms("108", f"AMBULANCE (108): Dispatch to {e_location_name} (Priority: POISONING)")
+            NotificationService.send_sms(
+                "108",
+                f"AMBULANCE (108): Dispatch to {e_location_name} (Priority: POISONING)",
+            )
             NotificationService.send_sms(
                 "HOSPITAL_NUMBER",
                 f"HOSPITAL: Pre-arrival alert for POISON CONTROL - {e_symptoms}",
             )
             NotificationService.send_sms(
-                family_contact, f"FAMILY: {patient_name} has a {e_risk_level} emergency! Track here: {google_maps_link}"
+                family_contact,
+                f"FAMILY: {patient_name} has a {e_risk_level} emergency! Track here: {google_maps_link}",
             )
         else:
-            NotificationService.send_sms("108", f"AMBULANCE (108): Dispatch to {e_location_name}")
+            NotificationService.send_sms(
+                "108", f"AMBULANCE (108): Dispatch to {e_location_name}"
+            )
             NotificationService.send_sms(
                 "HOSPITAL_NUMBER",
                 f"HOSPITAL: Pre-arrival alert for {e_symptoms}",
             )
             NotificationService.send_sms(
-                family_contact, f"FAMILY: {patient_name} has a {e_risk_level} emergency! Track here: {google_maps_link}"
+                family_contact,
+                f"FAMILY: {patient_name} has a {e_risk_level} emergency! Track here: {google_maps_link}",
             )
             NotificationService.send_sms(
                 "VOLUNTEER_NUMBER",
@@ -253,7 +314,7 @@ def handle_accept_emergency(data):
             elif emergency.status == "PENDING":
                 emergency.status = "ACCEPTED"
                 emergency.accepted_by = role
-                
+
                 if role == "ambulance":
                     # Auto-assign a nearby mock hospital
                     emergency.hospital_name = "Apollo City Hospital"
@@ -350,7 +411,11 @@ def broadcast_emergencies():
                         profile.medical_history if profile else "No history provided."
                     ),
                     "hospital_name": e.hospital_name,
-                    "hospital_location": {"lat": e.hospital_lat, "lng": e.hospital_lng} if e.hospital_lat else None,
+                    "hospital_location": (
+                        {"lat": e.hospital_lat, "lng": e.hospital_lng}
+                        if e.hospital_lat
+                        else None
+                    ),
                     "created_at": e.created_at.isoformat() if e.created_at else None,
                 }
             )
@@ -512,9 +577,9 @@ if __name__ == "__main__":
     # Use eventlet or gunicorn in production
     socketio.run(
         app,
+        host="0.0.0.0",
         debug=os.getenv("FLASK_DEBUG", "False") == "True",
         use_reloader=False,
         port=5000,
-        allow_unsafe_werkzeug=True  # type: ignore
+        allow_unsafe_werkzeug=True,  # type: ignore
     )
-

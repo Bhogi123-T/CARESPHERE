@@ -3,10 +3,61 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Ecosystem Health Response</title>
+    <!-- Google Translate Script -->
+    <script type="text/javascript">
+      function googleTranslateElementInit() {
+        new google.translate.TranslateElement({
+          pageLanguage: 'en',
+          layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+          autoDisplay: false
+        }, 'google_translate_element');
+      }
+    </script>
+    <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+    <style>
+      /* Hide the top Google Translate banner */
+      .skiptranslate iframe {
+        display: none !important;
+      }
+      body {
+        top: 0 !important;
+      }
+      /* Custom Google Translate Widget Styling for Dark UI */
+      #google_translate_element {
+        position: fixed;
+        bottom: 24px;
+        right: 90px;
+        z-index: 99999;
+      }
+      .goog-te-gadget-simple {
+        background-color: #0f172a !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 9999px !important;
+        padding: 8px 16px !important;
+        font-family: inherit !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5) !important;
+      }
+      .goog-te-gadget-simple span {
+        color: #e2e8f0 !important;
+      }
+      .goog-te-menu-value span {
+        color: #e2e8f0 !important;
+      }
+      .goog-te-menu-value span:nth-child(5) {
+        color: #38bdf8 !important; /* The dropdown arrow */
+      }
+      .goog-te-menu-frame {
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5) !important;
+      }
+    </style>
   </head>
   <body>
+    <!-- Hidden div for Google Translate to attach to -->
+    <div id="google_translate_element"></div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

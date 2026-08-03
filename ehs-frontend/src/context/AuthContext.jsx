@@ -35,7 +35,7 @@ export const AuthProvider = ({ children }) => {
       else if (user.role === 'ambulance') navigate('/ambulance/dashboard');
       else if (user.role === 'volunteer') navigate('/volunteer/dashboard');
       else if (user.role === 'pharmacy') navigate('/pharmacy/dashboard');
-      else if (user.role === 'blood_donor') navigate('/blood_donor/dashboard');
+      else if (user.role === 'blood_donor') navigate('/donor/dashboard');
       else if (user.role === 'government') navigate('/government/dashboard');
       else navigate('/');
       
@@ -54,6 +54,18 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateProfile = async (name, address) => {
+    try {
+      const response = await api.post('/auth/profile', { name, address });
+      const updatedUser = response.data.user;
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: error.response?.data?.msg || 'Failed to update profile' };
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -62,7 +74,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, register, updateProfile, logout, loading }}>
       {!loading && children}
     </AuthContext.Provider>
   );

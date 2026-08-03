@@ -30,11 +30,11 @@ const AnimatedInput = React.forwardRef(({
           id={inputId}
           placeholder=" "
           className={cn(
-            "w-full bg-slate-900/50 border border-slate-700/50 rounded-xl px-4 py-3.5 text-slate-200 outline-none transition-all duration-300",
-            "focus:bg-slate-800/80 focus:border-blue-500/50 focus:shadow-[0_0_15px_rgba(59,130,246,0.15)]",
-            "hover:border-slate-600",
+            "w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-slate-800 outline-none transition-all duration-300 shadow-sm",
+            "focus:bg-white focus:border-teal-400 focus:shadow-[0_0_15px_rgba(20,184,166,0.1)]",
+            "hover:border-slate-300",
             Icon ? "pl-11" : "",
-            error ? "border-red-500/50 focus:border-red-500/50 focus:shadow-[0_0_15px_rgba(239,68,68,0.15)]" : "",
+            error ? "border-red-400 focus:border-red-400 focus:shadow-[0_0_15px_rgba(239,68,68,0.1)]" : "",
             "peer"
           )}
           {...props}
@@ -45,9 +45,9 @@ const AnimatedInput = React.forwardRef(({
             className={cn(
               "absolute transition-all duration-300 pointer-events-none rounded px-1",
               Icon ? "left-11 peer-focus:left-3" : "left-4 peer-focus:left-3",
-              "-top-2.5 text-xs bg-slate-900 text-blue-400",
-              "peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-base peer-placeholder-shown:bg-transparent peer-placeholder-shown:text-slate-400",
-              "peer-focus:-top-2.5 peer-focus:text-xs peer-focus:bg-slate-900 peer-focus:text-blue-400"
+              "-top-2.5 text-xs bg-white text-teal-600",
+              "peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-base peer-placeholder-shown:bg-transparent peer-placeholder-shown:text-slate-500",
+              "peer-focus:-top-2.5 peer-focus:text-xs peer-focus:bg-white peer-focus:text-teal-600"
             )}
           >
             {label}

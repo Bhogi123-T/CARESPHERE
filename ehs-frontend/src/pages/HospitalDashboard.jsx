@@ -3,10 +3,11 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { io } from 'socket.io-client';
 import { BACKEND_URL } from '../services/api';
+import api from '../services/api';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { Activity, MapPin, CheckCircle, Clock, Bed, Users, AlertTriangle, Radio, Truck } from 'lucide-react';
+import { Activity, MapPin, CheckCircle, Clock, Bed, Users, AlertTriangle, Radio, Truck, BrainCircuit } from 'lucide-react';
 import { useLocationName } from '../hooks/useLocationName';
 import { useLiveLocation } from '../hooks/useLiveLocation';
 import { getLocationName } from '../services/geocoding';
@@ -17,6 +18,7 @@ import ThemeToggle from '../components/ui/ThemeToggle';
 import AnimatedCounter from '../components/ui/AnimatedCounter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNetworkState } from '../hooks/useNetworkState';
+import { AreaChart, Area, ResponsiveContainer, Tooltip as RechartsTooltip, YAxis } from 'recharts';
 
 // --- OFFLINE SAFE ICONS ---
 const defaultIcon = L.divIcon({
@@ -50,13 +52,17 @@ const ambulanceIcon = L.divIcon({
 
 
 import TimeAgo from '../components/ui/TimeAgo';
+import LanguageToggle from '../components/ui/LanguageToggle';
+import { useLanguage } from '../context/LanguageContext';
 
 const HospitalDashboard = () => {
   const { user, logout } = useAuth();
+  const { t } = useLanguage();
   const { isOnline } = useNetworkState();
   const { addToast } = useToast();
   const [socket, setSocket] = useState(null);
   const [emergencies, setEmergencies] = useState([]);
+  const [dispatchingId, setDispatchingId] = useState(null);
   const [center, setCenter] = useState([17.3850, 78.4867]);
   const [lowDataMode, setLowDataMode] = useState(false); 
   const [locations, setLocations] = useState({});
@@ -80,8 +86,16 @@ const HospitalDashboard = () => {
   
   const [isEditingResources, setIsEditingResources] = useState(false);
 
-  const pendingEmergencies = emergencies.filter(e => e.status === 'PENDING');
-  const incomingPatients = emergencies.filter(e => e.status !== 'PENDING');
+  const sortEmergencies = (a, b) => {
+    const riskScore = { 'CRITICAL': 3, 'HIGH': 2, 'MEDIUM': 1, 'LOW': 0 };
+    const scoreA = riskScore[a.risk_level] || 0;
+    const scoreB = riskScore[b.risk_level] || 0;
+    if (scoreA !== scoreB) return scoreB - scoreA;
+    return new Date(b.created_at) - new Date(a.created_at);
+  };
+
+  const pendingEmergencies = emergencies.filter(e => e.status === 'PENDING').sort(sortEmergencies);
+  const incomingPatients = emergencies.filter(e => e.status !== 'PENDING').sort(sortEmergencies);
 
   // Helper function to calculate distance using Haversine formula
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
@@ -166,22 +180,48 @@ const HospitalDashboard = () => {
     }
   };
 
+  const handleAutoDispatch = async (id) => {
+    setDispatchingId(id);
+    try {
+      const response = await api.post('/auto-dispatch', { emergency_id: id });
+      addToast(
+        `AI DISPATCH SUCCESS: Assigned ${response.data.ambulance_assigned} (Distance: ${response.data.distance}, Score: ${response.data.multi_factor_score})`,
+        'success',
+        8000
+      );
+      // Backend automatically updates emergency status, socket will broadcast update_emergencies
+    } catch (error) {
+      addToast(error.response?.data?.msg || 'Auto-Dispatch failed.', 'error');
+    } finally {
+      setDispatchingId(null);
+    }
+  };
+
   return (
     <div className="h-screen flex flex-col relative overflow-hidden bg-slate-950 selection:bg-blue-500/30">
       {!isOnline && (
-        <div className="bg-red-600/90 backdrop-blur-md text-white text-center py-1.5 px-4 font-black uppercase tracking-widest text-[10px] shadow-lg animate-pulse z-[9999] relative border-b border-red-500">
-          ⚠️ Rural Offline Mode Active - Using Local Network & Triangulation
+        <div className="bg-red-600/90 backdrop-blur-md text-white text-center py-1.5 px-4 font-black uppercase tracking-widest text-[10px] shadow-[0_0_15px_rgba(220,38,38,0.5)] animate-pulse z-[9999] relative border-b border-red-500 flex items-center justify-center gap-2">
+          <WifiOff size={14} /> ⚠️ Rural Offline Mode Active - Using Local Network & Triangulation
         </div>
       )}
-      <header className="premium-glass-nav p-4 flex justify-between items-center z-50">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-blue-500/20 flex items-center justify-center text-blue-400 border border-blue-500/40 shadow-inner drop-shadow-md">
-            <Activity size={24} />
+      <header className="bg-slate-900/80 backdrop-blur-xl border-b border-slate-800 shadow-[0_4px_30px_rgba(0,0,0,0.1)] p-4 flex flex-col md:flex-row justify-between items-center z-50 gap-4 md:gap-0 relative">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/3 h-1 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent"></div>
+        <div className="flex items-center gap-4 w-full md:w-auto">
+          <div className="w-12 h-12 rounded-2xl bg-slate-800/80 flex items-center justify-center text-blue-400 border border-slate-700 shadow-[0_0_15px_rgba(59,130,246,0.2)] drop-shadow-sm relative overflow-hidden group">
+            <div className="absolute inset-0 bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors"></div>
+            <Activity size={24} className="relative z-10" />
           </div>
           <div>
-            <h1 className="text-2xl font-black tracking-tight text-white drop-shadow-sm">Hospital Command Center</h1>
-            <p className="text-slate-400 text-xs flex items-center gap-2 font-medium mt-1">
-              <Badge variant="primary" className="px-2 py-0.5 text-[10px]">Logged in as {user?.role.toUpperCase()}</Badge>
+            <h1 className="text-2xl font-black tracking-tight text-white drop-shadow-sm flex items-center gap-2">
+              Apollo City Hospital
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+              </span>
+            </h1>
+            <p className="text-blue-400 text-[10px] font-black uppercase tracking-widest mt-0.5 mb-1.5">Central Emergency Command</p>
+            <p className="text-slate-400 text-xs flex items-center gap-2 font-medium">
+              <Badge variant="primary" className="px-2 py-0.5 text-[10px] bg-blue-900/30 text-blue-400 border-blue-800/50">Lvl: {user?.role.toUpperCase()}</Badge>
               <span className="text-slate-600">•</span>
               <span className="flex items-center gap-1 text-slate-300">
                 {isTracking ? <span className="relative flex h-2 w-2 mr-1"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span></span> : <MapPin size={12} className="text-slate-400"/>}
@@ -191,47 +231,49 @@ const HospitalDashboard = () => {
           </div>
         </div>
         
-        <div className="flex gap-8 items-center bg-slate-900/60 backdrop-blur-md p-2 px-8 rounded-2xl border border-white/10 shadow-inner">
-          <div className="text-center">
-            <div className="text-3xl font-black text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]">
+        <div className="flex flex-wrap md:flex-nowrap gap-4 md:gap-6 items-center bg-slate-800/50 backdrop-blur-md p-2 px-4 md:px-6 rounded-2xl border border-slate-700 shadow-inner w-full md:w-auto justify-center">
+          <div className="text-center px-2">
+            <div className="text-3xl font-black text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]">
               <AnimatedCounter to={emergencies.filter(e => e.status === 'PENDING').length} duration={1} />
             </div>
-            <div className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Active Emergencies</div>
+            <div className="text-[9px] uppercase tracking-widest text-slate-400 font-bold">{t('hospital.active_emergencies') || 'Active SOS'}</div>
           </div>
-          <div className="w-px h-10 bg-slate-700/50"></div>
-          <div className="text-center">
-            <div className="text-3xl font-black text-blue-400 drop-shadow-[0_0_10px_rgba(96,165,250,0.3)]">
+          <div className="w-px h-10 bg-slate-700"></div>
+          <div className="text-center px-2">
+            <div className="text-3xl font-black text-blue-400 drop-shadow-[0_0_8px_rgba(96,165,250,0.4)]">
               <AnimatedCounter to={4} duration={1.5} />
             </div>
-            <div className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Ambulances</div>
+            <div className="text-[9px] uppercase tracking-widest text-slate-400 font-bold">{t('hospital.ambulances') || 'Ambulances'}</div>
           </div>
-          <div className="w-px h-10 bg-slate-700/50"></div>
-          <div className="text-center">
-            <div className="text-3xl font-black text-green-400 drop-shadow-[0_0_10px_rgba(74,222,128,0.3)]">
+          <div className="w-px h-10 bg-slate-700"></div>
+          <div className="text-center px-2">
+            <div className="text-3xl font-black text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.4)]">
               <AnimatedCounter to={8} duration={2} />
             </div>
-            <div className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Doctors</div>
+            <div className="text-[9px] uppercase tracking-widest text-slate-400 font-bold">{t('hospital.doctors') || 'Doctors'}</div>
           </div>
-          <div className="w-px h-10 bg-slate-700/50"></div>
-          <button onClick={() => setLowDataMode(!lowDataMode)} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${lowDataMode ? 'bg-orange-500/20 text-orange-400 border-orange-500/50' : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'}`}>{lowDataMode ? '⚡ 2G Mode On' : '⚡ 2G Mode'}</button>
-          <ThemeToggle />
-          <Button variant="ghost" size="sm" onClick={logout} className="text-red-400 hover:text-red-300 hover:bg-red-500/10">Sign Out</Button>
+          <div className="w-px h-10 bg-slate-700"></div>
+          <button onClick={() => setLowDataMode(!lowDataMode)} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all shadow-sm ${lowDataMode ? 'bg-orange-900/30 text-orange-400 border-orange-800 shadow-[0_0_10px_rgba(249,115,22,0.2)]' : 'bg-slate-700 text-slate-300 border-slate-600 hover:text-white'}`}>{lowDataMode ? '⚡ 2G Mode On' : '⚡ 2G Mode'}</button>
+          <LanguageToggle />
+          <Button variant="ghost" size="sm" onClick={logout} className="text-red-400 hover:text-red-300 hover:bg-red-900/30 border border-transparent hover:border-red-800/50 rounded-lg">{t('app.logout')}</Button>
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden relative">
+      <div className="flex flex-col-reverse md:flex-row flex-1 overflow-y-auto md:overflow-hidden relative">
+      <div className="flex flex-col-reverse md:flex-row flex-1 overflow-y-auto md:overflow-hidden relative">
         {/* Sidebar */}
-        <aside className="w-[420px] premium-glass-panel rounded-none border-t-0 border-b-0 border-l-0 border-r-white/10 overflow-y-auto p-6 flex flex-col gap-6 z-10 custom-scrollbar bg-slate-900/80">
+        <aside className="w-full md:w-[420px] h-[50vh] md:h-full bg-slate-900/90 backdrop-blur-md rounded-none md:border-r border-t md:border-t-0 border-slate-800 shadow-[4px_0_24px_rgba(0,0,0,0.2)] overflow-y-auto p-4 md:p-6 flex flex-col gap-6 z-10 custom-scrollbar relative">
           <h2 className="text-xl font-black flex items-center gap-3 tracking-tight text-white">
-            <span className="w-3 h-3 rounded-full bg-red-500 animate-glow-pulse shadow-[0_0_10px_rgba(239,68,68,0.8)]"></span>
+            <span className="w-3 h-3 rounded-full bg-red-500 animate-glow-pulse shadow-[0_0_10px_rgba(239,68,68,0.5)]"></span>
             Emergency Queue
           </h2>
           
           {emergencies.length === 0 ? (
-            <div className="text-center py-16 px-6 bg-slate-900/50 backdrop-blur-md border border-slate-700/50 rounded-3xl animate-fade-in-up shadow-inner">
-              <CheckCircle className="w-16 h-16 mx-auto mb-4 text-green-500/40 drop-shadow-lg" />
-              <p className="font-bold text-lg text-slate-200">No active emergencies</p>
-              <p className="text-sm mt-2 text-slate-500 font-medium">The queue is clear.</p>
+            <div className="text-center py-16 px-6 bg-slate-800/50 border border-slate-700 rounded-3xl animate-fade-in-up shadow-inner relative overflow-hidden">
+              <div className="absolute inset-0 bg-green-500/5 blur-[50px] rounded-full"></div>
+              <CheckCircle className="w-16 h-16 mx-auto mb-4 text-emerald-500 drop-shadow-[0_0_8px_rgba(16,185,129,0.5)] relative z-10" />
+              <p className="font-bold text-lg text-slate-300 relative z-10">No active emergencies</p>
+              <p className="text-sm mt-2 text-slate-500 font-medium relative z-10">The queue is clear.</p>
             </div>
           ) : (
             <motion.div 
@@ -239,10 +281,7 @@ const HospitalDashboard = () => {
               animate="show" 
               variants={{
                 hidden: { opacity: 0 },
-                show: {
-                  opacity: 1,
-                  transition: { staggerChildren: 0.1 }
-                }
+                show: { opacity: 1, transition: { staggerChildren: 0.1 } }
               }}
               className="space-y-4"
             >
@@ -253,26 +292,38 @@ const HospitalDashboard = () => {
                     show: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", stiffness: 300, damping: 24 } }
                   }}
                   key={e.id} 
-                  className="bg-slate-900/60 backdrop-blur-md p-5 rounded-2xl border-l-[4px] shadow-[0_10px_30px_rgba(0,0,0,0.5)] border-l-red-500 border border-slate-700/50"
+                  className="bg-slate-800/80 p-5 rounded-2xl border-l-[4px] shadow-[0_4px_20px_rgba(0,0,0,0.15)] border-l-red-500 border border-slate-700/50 hover:border-slate-600 transition-all relative overflow-hidden group"
                 >
-                  <div className="flex justify-between items-start mb-4">
-                    <Badge variant={e.risk_level === 'CRITICAL' ? 'danger' : 'warning'} className="uppercase tracking-widest text-[10px]">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 blur-[40px] rounded-full pointer-events-none group-hover:bg-red-500/10 transition-colors"></div>
+                  <div className="flex justify-between items-start mb-4 relative z-10">
+                    <Badge variant={e.risk_level === 'CRITICAL' ? 'danger' : 'warning'} className={`uppercase tracking-widest text-[9px] font-black ${e.risk_level === 'CRITICAL' ? 'bg-red-900/50 text-red-400 border-red-800/50 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : 'bg-orange-900/50 text-orange-400 border-orange-800/50'}`}>
                       {e.risk_level}
                     </Badge>
-                    <span className="text-xs text-slate-400 flex items-center gap-1 font-medium"><Clock size={12}/> <TimeAgo timestamp={e.created_at} /></span>
+                    <span className="text-[10px] text-slate-400 flex items-center gap-1 font-bold uppercase tracking-wider"><Clock size={12} className="text-slate-500"/> <TimeAgo timestamp={e.created_at} /></span>
                   </div>
-                  <p className="text-base font-bold mb-3 text-slate-200 leading-snug">{e.symptoms}</p>
-                  <div className="bg-slate-950/50 p-3 rounded-xl border border-white/5 mb-5 shadow-inner flex flex-col gap-2">
-                    <p className="text-xs text-orange-400 flex items-center gap-2 font-medium leading-relaxed"><MapPin size={16} className="text-orange-500/70"/> {locations[e.id] || 'Loading location...'}</p>
+                  <p className="text-base font-black mb-3 text-slate-100 leading-snug relative z-10">{e.symptoms}</p>
+                  <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-700/50 mb-5 shadow-inner flex flex-col gap-2 relative z-10">
+                    <p className="text-xs text-orange-400 flex items-center gap-2 font-medium leading-relaxed"><MapPin size={14} className="text-orange-500/70"/> {locations[e.id] || 'Loading location...'}</p>
                   </div>
                   
-                  <Button 
-                    variant="primary"
-                    className="w-full bg-blue-600 hover:bg-blue-500 border-none shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:scale-105"
-                    onClick={() => acceptEmergency(e.id)}
-                  >
-                    Accept & Dispatch
-                  </Button>
+                  <div className="flex gap-3 relative z-10">
+                    <Button 
+                      variant="primary"
+                      className="flex-1 bg-slate-700 hover:bg-slate-600 border border-slate-600 hover:border-slate-500 text-slate-200 text-xs px-2 shadow-none rounded-xl"
+                      onClick={() => acceptEmergency(e.id)}
+                    >
+                      Manual Accept
+                    </Button>
+                    <Button 
+                      variant="secondary"
+                      disabled={dispatchingId === e.id}
+                      className="flex-1 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 border-none shadow-[0_0_15px_rgba(79,70,229,0.3)] hover:shadow-[0_0_20px_rgba(79,70,229,0.5)] text-white text-xs px-2 flex items-center justify-center gap-2 rounded-xl"
+                      onClick={() => handleAutoDispatch(e.id)}
+                    >
+                      <BrainCircuit size={14} className={dispatchingId === e.id ? 'animate-spin' : ''} />
+                      {dispatchingId === e.id ? 'Computing...' : 'AI Dispatch'}
+                    </Button>
+                  </div>
                 </motion.div>
               ))}
             </motion.div>
@@ -281,30 +332,30 @@ const HospitalDashboard = () => {
           {incomingPatients.length > 0 && (
             <>
               <h2 className="text-xl font-black flex items-center gap-3 tracking-tight text-white mt-6">
-                <span className="w-3 h-3 rounded-full bg-orange-500 animate-glow-pulse shadow-[0_0_10px_rgba(249,115,22,0.8)]"></span>
-                Incoming Patients
+                <span className="w-3 h-3 rounded-full bg-orange-500 animate-glow-pulse shadow-[0_0_10px_rgba(249,115,22,0.5)]"></span>
+                Incoming ETA
               </h2>
               <div className="space-y-4">
                 {incomingPatients.map((e) => (
-                  <div key={e.id} className="bg-slate-900/60 backdrop-blur-md p-5 rounded-2xl border-l-[4px] shadow-[0_10px_30px_rgba(0,0,0,0.5)] border-l-orange-500 border border-slate-700/50">
+                  <div key={e.id} className="bg-slate-800/80 p-5 rounded-2xl border-l-[4px] shadow-[0_4px_20px_rgba(0,0,0,0.15)] border-l-orange-500 border border-slate-700/50 hover:border-slate-600 transition-all">
                     <div className="flex justify-between items-start mb-4">
-                      <Badge variant="warning" className="uppercase tracking-widest text-[10px]">
+                      <Badge variant="warning" className="uppercase tracking-widest text-[9px] font-black bg-orange-900/40 text-orange-400 border border-orange-800/50 shadow-[0_0_10px_rgba(249,115,22,0.15)]">
                         <Truck size={12} className="inline mr-1" /> En Route
                       </Badge>
                     </div>
-                    <p className="text-sm font-bold mb-3 text-orange-400 leading-snug">Target: {e.hospital_name}</p>
-                    <p className="text-base font-bold mb-3 text-slate-200 leading-snug">{e.symptoms}</p>
+                    <p className="text-xs font-black uppercase tracking-widest mb-1 text-slate-500">Target: <span className="text-orange-400">{e.hospital_name}</span></p>
+                    <p className="text-base font-bold mb-4 text-slate-100 leading-snug">{e.symptoms}</p>
                     
                     <div className="flex flex-col gap-3">
                       <Button 
                         variant="secondary"
-                        className="w-full uppercase tracking-widest text-[10px] py-3 hover:scale-105 bg-orange-500/20 text-orange-400 border-orange-500/50 hover:bg-orange-500/40"
+                        className="w-full uppercase tracking-widest text-[10px] font-black py-3 bg-slate-700/50 hover:bg-slate-700 text-blue-400 border border-blue-900/50 hover:border-blue-700/50 shadow-none rounded-xl transition-all"
                         onClick={() => {
                           setSelectedEmergency(e);
                           setChecklist({ blood: false, bed: false, doctor: false, medicine: false });
                         }}
                       >
-                        View Pre-Prep
+                        Open Pre-Arrival HUD
                       </Button>
                     </div>
                   </div>
@@ -315,8 +366,9 @@ const HospitalDashboard = () => {
         </aside>
 
         {/* Map */}
-        <main className="flex-1 relative z-0">
-          <MapContainer center={center} zoom={13} style={{ height: '100%', width: '100%' }} zoomControl={false} className={lowDataMode ? 'bg-slate-900' : 'grayscale-[20%] contrast-110'}>
+        <main className="flex-1 relative z-0 h-[50vh] md:h-auto min-h-[400px]">
+          <MapContainer 
+            center={center} zoom={13} style={{ height: '100%', width: '100%' }} zoomControl={false} className={lowDataMode ? 'bg-slate-900' : 'grayscale-[20%] contrast-110'}>
             {!lowDataMode && (
               <TileLayer
                 url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
@@ -325,7 +377,7 @@ const HospitalDashboard = () => {
             )}
             <LiveMapUpdater defaultCenter={center} />
             
-            {emergencies.map((e) => e.location && (
+            {emergencies.filter(e => e.status === 'PENDING' || e.status === 'ACCEPTED').map((e) => e.location && (
               <Marker 
                 key={e.id} 
                 position={[e.location.lat, e.location.lng]}
@@ -356,67 +408,79 @@ const HospitalDashboard = () => {
           </MapContainer>
           
           {/* Overlay gradient for Map to blend with dark mode */}
-          <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_100px_rgba(2,6,23,0.9)] z-[400]"></div>
+          <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_80px_rgba(2,6,23,1)] z-[400]"></div>
 
           {/* Phase 5: Pre-Preparation Panel overlaying the map */}
           {selectedEmergency && (
-            <div className="absolute top-6 right-[380px] w-[420px] max-h-[85vh] overflow-y-auto bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.8)] z-[500] p-8 animate-fade-in-up custom-scrollbar">
-              <div className="flex justify-between items-center mb-8">
-                <h3 className="font-black text-xl text-white flex items-center gap-3 tracking-tight">
-                  <Activity className="text-blue-400" size={24} /> Pre-Arrival Prep
+            <div className="absolute top-6 right-6 md:right-[380px] w-full md:w-[460px] max-h-[85vh] overflow-y-auto bg-slate-900/90 backdrop-blur-2xl border border-blue-900/50 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-[500] p-8 animate-fade-in-up custom-scrollbar relative overflow-hidden">
+              {/* HUD decorative elements */}
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-50"></div>
+              <div className="absolute top-1/2 left-[-20%] w-64 h-64 bg-blue-500/10 blur-[60px] rounded-full pointer-events-none"></div>
+              
+              <div className="flex justify-between items-center mb-8 relative z-10">
+                <h3 className="font-black text-xl text-white flex items-center gap-3 tracking-widest uppercase text-shadow-sm">
+                  <Activity className="text-blue-400 drop-shadow-[0_0_8px_rgba(96,165,250,0.6)]" size={24} /> Pre-Arrival HUD
                 </h3>
-                <button onClick={() => setSelectedEmergency(null)} className="text-slate-500 hover:text-white bg-slate-800 hover:bg-slate-700 w-8 h-8 rounded-full flex items-center justify-center transition-colors">&times;</button>
+                <button onClick={() => setSelectedEmergency(null)} className="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 w-8 h-8 rounded-full flex items-center justify-center transition-colors border border-slate-700 shadow-sm">&times;</button>
               </div>
 
-              {/* Patient Details */}
-              <div className="bg-slate-950/60 rounded-2xl p-5 mb-8 border border-white/5 space-y-5 shadow-inner">
-                <div>
-                  <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-1.5">Patient Details</p>
-                  <p className="font-bold text-lg text-slate-200">{selectedEmergency.patient_name}, {selectedEmergency.patient_age} yrs</p>
-                </div>
-                <div className="flex gap-4">
-                  <div className="flex-1">
-                    <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-1.5">Blood Group</p>
-                    <p className="font-black text-red-500 text-xl drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]">{selectedEmergency.blood_group}</p>
+              {/* Patient Details HUD */}
+              <div className="bg-slate-950/60 rounded-2xl p-6 mb-8 border border-slate-800/80 space-y-5 shadow-inner relative z-10">
+                <div className="flex items-start justify-between border-b border-slate-800/80 pb-4">
+                  <div>
+                    <p className="text-[9px] uppercase tracking-widest text-slate-500 font-black mb-1.5 flex items-center gap-1.5"><Users size={10} className="text-blue-500"/> Subject Identity</p>
+                    <p className="font-black text-xl text-slate-100 uppercase tracking-wide">{selectedEmergency.patient_name} <span className="text-slate-500 font-medium">| {selectedEmergency.patient_age} YRS</span></p>
                   </div>
-                  <div className="flex-1">
-                    <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-1.5">ETA</p>
-                    <p className="font-black text-orange-400 text-xl animate-pulse">
-                      {liveAmbulances[selectedEmergency.id] 
-                        ? `~${liveAmbulances[selectedEmergency.id].eta_left} mins` 
-                        : 'Calculating...'}
-                    </p>
+                  <div className="text-right">
+                    <p className="text-[9px] uppercase tracking-widest text-slate-500 font-black mb-1.5">Blood Type</p>
+                    <p className="font-black text-red-500 text-2xl drop-shadow-[0_0_12px_rgba(239,68,68,0.6)] leading-none">{selectedEmergency.blood_group}</p>
                   </div>
                 </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-1.5">Medical History</p>
-                  <p className="text-sm font-medium text-slate-300 leading-relaxed bg-black/40 p-3 rounded-xl border border-white/5">{selectedEmergency.medical_history}</p>
+                <div className="bg-orange-900/20 border border-orange-900/50 rounded-xl p-4 flex justify-between items-center">
+                    <div>
+                      <p className="text-[9px] uppercase tracking-widest text-orange-500 font-black mb-1">Ambulance ETA</p>
+                      <p className="font-black text-orange-400 text-xl flex items-center gap-2">
+                        {liveAmbulances[selectedEmergency.id] 
+                          ? <><span className="animate-pulse">~{liveAmbulances[selectedEmergency.id].eta_left} MINS</span></> 
+                          : 'Calculating...'}
+                      </p>
+                    </div>
+                    <Truck size={24} className="text-orange-500/50"/>
                 </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-1.5">Symptoms</p>
-                  <p className="text-sm font-medium text-slate-300 leading-relaxed bg-black/40 p-3 rounded-xl border border-white/5">{selectedEmergency.symptoms}</p>
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="bg-slate-800/40 p-4 rounded-xl border border-slate-700/50">
+                    <p className="text-[9px] uppercase tracking-widest text-slate-500 font-black mb-2 flex items-center gap-1.5"><Heart size={10} className="text-pink-500"/> Known History</p>
+                    <p className="text-sm font-medium text-slate-300 leading-relaxed">{selectedEmergency.medical_history}</p>
+                  </div>
+                  <div className="bg-red-900/10 p-4 rounded-xl border border-red-900/30">
+                    <p className="text-[9px] uppercase tracking-widest text-red-500 font-black mb-2 flex items-center gap-1.5"><AlertTriangle size={10} className="text-red-500"/> Reported Symptoms</p>
+                    <p className="text-sm font-medium text-slate-200 leading-relaxed">{selectedEmergency.symptoms}</p>
+                  </div>
                 </div>
               </div>
 
-              {/* Readiness Checklist */}
-              <div className="mb-8">
-                <p className="text-xs uppercase tracking-widest text-slate-400 font-bold mb-4 flex items-center gap-2">
-                  <CheckCircle size={16} className="text-green-500"/> Readiness Checklist
+              {/* Readiness Checklist HUD */}
+              <div className="mb-8 relative z-10">
+                <p className="text-[10px] uppercase tracking-widest text-slate-400 font-black mb-4 flex items-center gap-2">
+                  <CheckCircle size={14} className="text-emerald-500"/> Facility Readiness Protocol
                 </p>
                 <div className="space-y-3">
                   {[
-                    { id: 'blood', label: 'Blood Arranged' },
-                    { id: 'bed', label: 'Bed/OT Ready' },
-                    { id: 'doctor', label: 'Doctor on Standby' },
-                    { id: 'medicine', label: 'Medicines Ready' }
+                    { id: 'blood', label: 'Blood Units Arranged' },
+                    { id: 'bed', label: 'Trauma Bay Ready' },
+                    { id: 'doctor', label: 'Surgical Team on Standby' },
+                    { id: 'medicine', label: 'Resuscitation Kit Prepped' }
                   ].map(item => (
-                    <label key={item.id} className={`flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all ${checklist[item.id] ? 'bg-green-500/10 border-green-500/30 text-green-400 shadow-[0_0_15px_rgba(34,197,94,0.1)]' : 'bg-slate-800/50 border-slate-700/50 hover:bg-slate-800 text-slate-300 shadow-inner'}`}>
-                      <input 
-                        type="checkbox" 
-                        className="w-5 h-5 rounded bg-slate-950 border-slate-600 text-green-500 focus:ring-green-500 focus:ring-offset-slate-900 cursor-pointer"
-                        checked={checklist[item.id]}
-                        onChange={(e) => setChecklist({...checklist, [item.id]: e.target.checked})}
-                      />
+                    <label key={item.id} className={`flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all ${checklist[item.id] ? 'bg-emerald-900/30 border-emerald-500/50 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.15)]' : 'bg-slate-800/50 border-slate-700 hover:bg-slate-800 hover:border-slate-600 text-slate-300 shadow-sm'}`}>
+                      <div className="relative flex items-center justify-center w-6 h-6 rounded border border-slate-600 bg-slate-900 shrink-0">
+                        <input 
+                          type="checkbox" 
+                          className="peer absolute w-full h-full opacity-0 cursor-pointer"
+                          checked={checklist[item.id]}
+                          onChange={(e) => setChecklist({...checklist, [item.id]: e.target.checked})}
+                        />
+                        {checklist[item.id] && <CheckCircle size={16} className="text-emerald-500 drop-shadow-[0_0_5px_rgba(16,185,129,0.8)]" />}
+                      </div>
                       <span className="font-bold text-sm tracking-wide">{item.label}</span>
                     </label>
                   ))}
@@ -424,139 +488,171 @@ const HospitalDashboard = () => {
               </div>
 
               {/* Status Banner */}
-              {Object.values(checklist).every(Boolean) ? (
-                <div className="bg-green-600 text-white font-black uppercase tracking-widest text-center py-5 rounded-2xl shadow-[0_0_30px_rgba(22,163,74,0.5)] animate-glow-pulse border border-green-400">
-                  HOSPITAL READY FOR ARRIVAL
-                </div>
-              ) : (
-                <div className="bg-slate-950 text-slate-500 font-bold uppercase tracking-widest text-center py-5 rounded-2xl border border-slate-800 shadow-inner">
-                  AWAITING PREPARATION
-                </div>
-              )}
+              <div className="relative z-10">
+                {Object.values(checklist).every(Boolean) ? (
+                  <div className="bg-gradient-to-r from-emerald-600 to-green-500 text-white font-black uppercase tracking-widest text-center py-5 rounded-xl shadow-[0_0_30px_rgba(16,185,129,0.4)] animate-glow-pulse border border-emerald-400 flex items-center justify-center gap-3">
+                    <CheckCircle size={20} /> FACILITY READY FOR IMPACT
+                  </div>
+                ) : (
+                  <div className="bg-slate-800 text-slate-500 font-black uppercase tracking-widest text-center py-5 rounded-xl border border-slate-700 shadow-inner flex items-center justify-center gap-3">
+                    <AlertTriangle size={18} /> AWAITING PROTOCOL COMPLETION
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </main>
         
         {/* Right Sidebar - Hospital Resources */}
-        <aside className="w-[350px] premium-glass-panel rounded-none border-t-0 border-b-0 border-r-0 border-l-white/10 overflow-y-auto p-6 flex flex-col gap-6 z-10 custom-scrollbar bg-slate-900/80 shrink-0">
+        <aside className="w-full md:w-[350px] h-auto md:h-full bg-slate-900/90 backdrop-blur-md rounded-none md:border-l border-t md:border-t-0 border-slate-800 shadow-[-4px_0_24px_rgba(0,0,0,0.2)] p-4 md:p-6 flex flex-col gap-6 z-10 shrink-0 relative custom-scrollbar overflow-y-auto">
           <h2 className="text-xl font-black flex items-center gap-3 tracking-tight text-white mb-2">
-            <span className="w-3 h-3 rounded-full bg-blue-500 animate-glow-pulse shadow-[0_0_10px_rgba(59,130,246,0.8)]"></span>
-            Resources & Staff
+            <span className="w-3 h-3 rounded-full bg-blue-500 animate-glow-pulse shadow-[0_0_10px_rgba(59,130,246,0.5)]"></span>
+            Facility Metrics
           </h2>
 
           {/* Emergency Codes */}
-          <div className="bg-slate-950/60 rounded-2xl p-5 border border-white/5 shadow-inner">
-            <h3 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-3 flex items-center gap-2">
-              <Radio size={14} className="text-red-400 animate-pulse"/> Broadcast Codes
+          <div className="bg-slate-800/80 rounded-2xl p-5 border border-slate-700/80 shadow-[0_4px_15px_rgba(0,0,0,0.1)] relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/10 blur-[30px] rounded-full pointer-events-none transition-transform group-hover:scale-150"></div>
+            <h3 className="text-[10px] uppercase tracking-widest text-slate-400 font-black mb-4 flex items-center gap-2 relative z-10">
+              <Radio size={14} className="text-red-500 animate-pulse"/> Global Broadcast
             </h3>
-            <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => addToast('CODE BLUE Broadcasted!', 'critical', 5000)} className="bg-blue-600/20 hover:bg-blue-600/40 border border-blue-500/50 text-blue-400 font-bold text-xs py-3 rounded-xl transition-all shadow-[0_0_10px_rgba(37,99,235,0.2)]">CODE BLUE</button>
-              <button onClick={() => addToast('CODE RED Broadcasted!', 'critical', 5000)} className="bg-red-600/20 hover:bg-red-600/40 border border-red-500/50 text-red-400 font-bold text-xs py-3 rounded-xl transition-all shadow-[0_0_10px_rgba(239,68,68,0.2)]">CODE RED</button>
+            <div className="grid grid-cols-2 gap-3 relative z-10">
+              <button onClick={() => addToast('CODE BLUE Broadcasted!', 'critical', 5000)} className="bg-blue-900/30 hover:bg-blue-600 border border-blue-800/50 hover:border-blue-500 text-blue-400 hover:text-white font-black text-xs py-3 rounded-xl transition-all shadow-[0_0_10px_rgba(59,130,246,0.1)] hover:shadow-[0_0_20px_rgba(59,130,246,0.4)]">CODE BLUE</button>
+              <button onClick={() => addToast('CODE RED Broadcasted!', 'critical', 5000)} className="bg-red-900/30 hover:bg-red-600 border border-red-800/50 hover:border-red-500 text-red-400 hover:text-white font-black text-xs py-3 rounded-xl transition-all shadow-[0_0_10px_rgba(239,68,68,0.1)] hover:shadow-[0_0_20px_rgba(239,68,68,0.4)] animate-pulse">CODE RED</button>
             </div>
           </div>
 
-          {/* Bed Tracker */}
-          <div className="bg-slate-950/60 rounded-2xl p-5 border border-white/5 shadow-inner">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold flex items-center gap-2">
-                <Bed size={14} className="text-slate-400"/> Live Bed Status
+          {/* Bed Tracker HUD */}
+          <div className="bg-slate-800/80 rounded-2xl p-5 border border-slate-700/80 shadow-[0_4px_15px_rgba(0,0,0,0.1)] relative overflow-hidden group">
+            <div className="absolute top-0 left-0 w-24 h-24 bg-blue-500/10 blur-[30px] rounded-full pointer-events-none transition-transform group-hover:scale-150"></div>
+            <div className="flex justify-between items-center mb-5 relative z-10">
+              <h3 className="text-[10px] uppercase tracking-widest text-slate-400 font-black flex items-center gap-2">
+                <Bed size={14} className="text-blue-500"/> Capacity Grid
               </h3>
-              <button onClick={() => setIsEditingResources(true)} className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-1 rounded hover:bg-blue-500/40 font-bold uppercase">
-                Edit
+              <button onClick={() => setIsEditingResources(true)} className="text-[9px] bg-slate-700 text-slate-300 px-2 py-1 rounded hover:bg-slate-600 font-black uppercase tracking-widest transition-colors border border-slate-600">
+                Update
               </button>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-5 relative z-10">
               <div>
-                <div className="flex justify-between text-[10px] font-bold text-slate-300 mb-1">
-                  <span>ICU BEDS</span>
-                  <span className="text-red-400">{beds.icu.available} / {beds.icu.total} Available</span>
+                <div className="flex justify-between text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">
+                  <span>CRITICAL (ICU)</span>
+                  <span className="text-red-400">{beds.icu.available} / {beds.icu.total}</span>
                 </div>
-                <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden shadow-inner">
-                  <div className="h-full bg-red-500" style={{ width: `${((beds.icu.total - beds.icu.available) / Math.max(beds.icu.total, 1)) * 100}%` }}></div>
+                <div className="h-1.5 w-full bg-slate-900 rounded-full overflow-hidden shadow-inner relative">
+                  <div className="absolute top-0 left-0 h-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)] rounded-full transition-all duration-1000" style={{ width: `${((beds.icu.total - beds.icu.available) / Math.max(beds.icu.total, 1)) * 100}%` }}></div>
                 </div>
               </div>
               <div>
-                <div className="flex justify-between text-[10px] font-bold text-slate-300 mb-1">
-                  <span>OXYGEN BEDS</span>
-                  <span className="text-orange-400">{beds.oxygen.available} / {beds.oxygen.total} Available</span>
+                <div className="flex justify-between text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">
+                  <span>OXYGEN SUPPORT</span>
+                  <span className="text-orange-400">{beds.oxygen.available} / {beds.oxygen.total}</span>
                 </div>
-                <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden shadow-inner">
-                  <div className="h-full bg-orange-500" style={{ width: `${((beds.oxygen.total - beds.oxygen.available) / Math.max(beds.oxygen.total, 1)) * 100}%` }}></div>
+                <div className="h-1.5 w-full bg-slate-900 rounded-full overflow-hidden shadow-inner relative">
+                  <div className="absolute top-0 left-0 h-full bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.8)] rounded-full transition-all duration-1000" style={{ width: `${((beds.oxygen.total - beds.oxygen.available) / Math.max(beds.oxygen.total, 1)) * 100}%` }}></div>
                 </div>
               </div>
               <div>
-                <div className="flex justify-between text-[10px] font-bold text-slate-300 mb-1">
+                <div className="flex justify-between text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">
                   <span>GENERAL WARD</span>
-                  <span className="text-green-400">{beds.general.available} / {beds.general.total} Available</span>
+                  <span className="text-emerald-400">{beds.general.available} / {beds.general.total}</span>
                 </div>
-                <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden shadow-inner">
-                  <div className="h-full bg-green-500" style={{ width: `${((beds.general.total - beds.general.available) / Math.max(beds.general.total, 1)) * 100}%` }}></div>
+                <div className="h-1.5 w-full bg-slate-900 rounded-full overflow-hidden shadow-inner relative">
+                  <div className="absolute top-0 left-0 h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)] rounded-full transition-all duration-1000" style={{ width: `${((beds.general.total - beds.general.available) / Math.max(beds.general.total, 1)) * 100}%` }}></div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Staff Roster */}
-          <div className="bg-slate-950/60 rounded-2xl p-5 border border-white/5 shadow-inner flex-1">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold flex items-center gap-2">
-                <Users size={14} className="text-slate-400"/> On-Duty ER Staff
+          <div className="bg-slate-800/80 rounded-2xl p-5 border border-slate-700/80 shadow-[0_4px_15px_rgba(0,0,0,0.1)] flex-1 overflow-y-auto custom-scrollbar relative">
+            <div className="flex justify-between items-center mb-5 sticky top-0 bg-slate-800 z-10 pb-2">
+              <h3 className="text-[10px] uppercase tracking-widest text-slate-400 font-black flex items-center gap-2">
+                <Users size={14} className="text-indigo-400"/> Active Specialists
               </h3>
             </div>
             <div className="space-y-3">
               {staff.map((s, i) => (
-                <div key={i} className="flex justify-between items-center bg-slate-900/80 p-3 rounded-xl border border-slate-700/50">
+                <div key={i} className="flex justify-between items-center bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 hover:border-slate-600 transition-colors">
                   <div>
                     <p className="text-xs font-bold text-slate-200">{s.name}</p>
-                    <p className="text-[10px] text-slate-500">{s.role}</p>
+                    <p className="text-[9px] font-black tracking-wider text-slate-500 uppercase mt-0.5">{s.role}</p>
                   </div>
-                  <span className={`text-[10px] font-bold uppercase tracking-wider ${s.color}`}>{s.status}</span>
+                  <span className={`text-[9px] font-black uppercase tracking-widest ${s.color} bg-slate-800 px-2 py-1 rounded border border-slate-700`}>{s.status}</span>
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* Mini Analytics Chart - Dark mode optimized */}
+          <div className="bg-slate-800/80 rounded-2xl p-5 border border-slate-700/80 shadow-[0_4px_15px_rgba(0,0,0,0.1)] relative">
+            <h3 className="text-[10px] uppercase tracking-widest text-slate-400 font-black flex items-center gap-2 mb-5">
+              <Activity size={14} className="text-blue-500"/> Arrival Frequency
+            </h3>
+            <div className="h-28">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={[
+                  { time: '08:00', val: 2 }, { time: '09:00', val: 5 }, { time: '10:00', val: 3 },
+                  { time: '11:00', val: 8 }, { time: '12:00', val: 12 }, { time: '13:00', val: 7 },
+                  { time: '14:00', val: 9 }
+                ]} margin={{ top: 5, right: 0, left: -40, bottom: 0 }}>
+                  <YAxis hide={true} domain={[0, 'dataMax + 2']} />
+                  <RechartsTooltip cursor={false} contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', fontSize: '11px', color: '#f8fafc', fontWeight: 'bold' }} itemStyle={{ color: '#60a5fa' }} />
+                  <Area type="monotone" dataKey="val" stroke="#3b82f6" strokeWidth={3} fill="url(#blueMiniGradientHUD)" animationDuration={1500} />
+                  <defs>
+                    <linearGradient id="blueMiniGradientHUD" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.4}/>
+                      <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.0}/>
+                    </linearGradient>
+                  </defs>
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
           </div>
         </aside>
       </div>
 
-      {/* Edit Resources Modal */}
+      {/* Edit Resources Modal - Dark UI */}
       {isEditingResources && (
-        <div className="absolute inset-0 bg-black/80 z-[9999] flex items-center justify-center backdrop-blur-sm p-4">
-          <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl animate-fade-in-up">
-            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><Bed size={20} className="text-blue-400"/> Edit Hospital Resources</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">ICU Beds (Available / Total)</label>
-                <div className="flex gap-2">
-                  <input type="number" min="0" value={beds.icu.available} onChange={(e) => setBeds({...beds, icu: {...beds.icu, available: parseInt(e.target.value) || 0}})} className="w-1/2 bg-black/40 border border-white/10 p-3 rounded-xl text-white font-bold focus:border-blue-500 outline-none" />
-                  <input type="number" min="0" value={beds.icu.total} onChange={(e) => setBeds({...beds, icu: {...beds.icu, total: parseInt(e.target.value) || 0}})} className="w-1/2 bg-black/40 border border-white/10 p-3 rounded-xl text-white font-bold focus:border-blue-500 outline-none" />
+        <div className="absolute inset-0 bg-slate-950/80 z-[9999] flex items-center justify-center backdrop-blur-md p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl p-8 w-full max-w-md shadow-[0_20px_50px_rgba(0,0,0,0.5)] animate-scale-in relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 to-indigo-600"></div>
+            <h2 className="text-xl font-black text-white mb-6 flex items-center gap-3 tracking-widest uppercase"><Bed size={20} className="text-blue-500"/> Capacity Update</h2>
+            <div className="space-y-5">
+              <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">ICU Beds (Available / Total)</label>
+                <div className="flex gap-3">
+                  <input type="number" min="0" value={beds.icu.available} onChange={(e) => setBeds({...beds, icu: {...beds.icu, available: parseInt(e.target.value) || 0}})} className="w-1/2 bg-slate-950 border border-slate-700 p-3 rounded-lg text-white font-bold focus:border-blue-500 outline-none shadow-inner" />
+                  <input type="number" min="0" value={beds.icu.total} onChange={(e) => setBeds({...beds, icu: {...beds.icu, total: parseInt(e.target.value) || 0}})} className="w-1/2 bg-slate-950 border border-slate-700 p-3 rounded-lg text-white font-bold focus:border-blue-500 outline-none shadow-inner" />
                 </div>
               </div>
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">Oxygen Beds (Available / Total)</label>
-                <div className="flex gap-2">
-                  <input type="number" min="0" value={beds.oxygen.available} onChange={(e) => setBeds({...beds, oxygen: {...beds.oxygen, available: parseInt(e.target.value) || 0}})} className="w-1/2 bg-black/40 border border-white/10 p-3 rounded-xl text-white font-bold focus:border-blue-500 outline-none" />
-                  <input type="number" min="0" value={beds.oxygen.total} onChange={(e) => setBeds({...beds, oxygen: {...beds.oxygen, total: parseInt(e.target.value) || 0}})} className="w-1/2 bg-black/40 border border-white/10 p-3 rounded-xl text-white font-bold focus:border-blue-500 outline-none" />
+              <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Oxygen Beds (Available / Total)</label>
+                <div className="flex gap-3">
+                  <input type="number" min="0" value={beds.oxygen.available} onChange={(e) => setBeds({...beds, oxygen: {...beds.oxygen, available: parseInt(e.target.value) || 0}})} className="w-1/2 bg-slate-950 border border-slate-700 p-3 rounded-lg text-white font-bold focus:border-blue-500 outline-none shadow-inner" />
+                  <input type="number" min="0" value={beds.oxygen.total} onChange={(e) => setBeds({...beds, oxygen: {...beds.oxygen, total: parseInt(e.target.value) || 0}})} className="w-1/2 bg-slate-950 border border-slate-700 p-3 rounded-lg text-white font-bold focus:border-blue-500 outline-none shadow-inner" />
                 </div>
               </div>
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">General Beds (Available / Total)</label>
-                <div className="flex gap-2">
-                  <input type="number" min="0" value={beds.general.available} onChange={(e) => setBeds({...beds, general: {...beds.general, available: parseInt(e.target.value) || 0}})} className="w-1/2 bg-black/40 border border-white/10 p-3 rounded-xl text-white font-bold focus:border-blue-500 outline-none" />
-                  <input type="number" min="0" value={beds.general.total} onChange={(e) => setBeds({...beds, general: {...beds.general, total: parseInt(e.target.value) || 0}})} className="w-1/2 bg-black/40 border border-white/10 p-3 rounded-xl text-white font-bold focus:border-blue-500 outline-none" />
+              <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">General Beds (Available / Total)</label>
+                <div className="flex gap-3">
+                  <input type="number" min="0" value={beds.general.available} onChange={(e) => setBeds({...beds, general: {...beds.general, available: parseInt(e.target.value) || 0}})} className="w-1/2 bg-slate-950 border border-slate-700 p-3 rounded-lg text-white font-bold focus:border-blue-500 outline-none shadow-inner" />
+                  <input type="number" min="0" value={beds.general.total} onChange={(e) => setBeds({...beds, general: {...beds.general, total: parseInt(e.target.value) || 0}})} className="w-1/2 bg-slate-950 border border-slate-700 p-3 rounded-lg text-white font-bold focus:border-blue-500 outline-none shadow-inner" />
                 </div>
               </div>
             </div>
-            <div className="mt-8 flex justify-end gap-3">
-              <button onClick={() => setIsEditingResources(false)} className="px-5 py-2.5 text-slate-400 hover:text-white font-bold text-sm transition-colors">Cancel</button>
+            <div className="mt-8 flex justify-end gap-4">
+              <button onClick={() => setIsEditingResources(false)} className="px-6 py-3 text-slate-400 hover:text-white font-black uppercase tracking-widest text-[10px] transition-colors">Abort</button>
               <button onClick={() => {
                 localStorage.setItem('hospital_beds', JSON.stringify(beds));
                 setIsEditingResources(false);
-                addToast('Resources updated successfully', 'success', 3000);
-              }} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold shadow-[0_0_15px_rgba(37,99,235,0.4)] transition-colors text-sm">Save Changes</button>
+                addToast('CAPACITY METRICS UPDATED', 'success', 3000);
+              }} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all">Commit Changes</button>
             </div>
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 };

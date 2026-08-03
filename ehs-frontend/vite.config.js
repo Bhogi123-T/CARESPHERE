@@ -12,6 +12,7 @@ export default defineConfig({
         enabled: true
       },
       workbox: {
+        maximumFileSizeToCacheInBytes: 10000000, // 10MB limit for Maplibre and Leaflet bundle
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/[a-z]\.basemaps\.cartocdn\.com\/.*/i,
@@ -58,7 +59,7 @@ export default defineConfig({
     })
   ],
   server: {
-    port: 5173,
+    port: 5174,
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:5000',

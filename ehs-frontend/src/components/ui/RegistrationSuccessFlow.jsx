@@ -4,10 +4,10 @@ import AnimatedModal from './AnimatedModal';
 import { CheckCircle2, Server, Truck, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-const RegistrationSuccessFlow = ({ isOpen, isHighRisk }) => {
+const RegistrationSuccessFlow = ({ isOpen, isHighRisk, mlResult }) => {
   const navigate = useNavigate();
   const [phase, setPhase] = useState(0); 
-  // 0: Initial, 1: Profile Saved, 2: Hospitals Notified, 3: Trucks Alerted, 4: Done
+  // 0: Initial, 1: Profile Saved, 2: Hospitals Notified, 3: Trucks Alerted, 4: ML Prediction (if any), 5: Done
 
   useEffect(() => {
     if (isOpen) {
@@ -15,20 +15,29 @@ const RegistrationSuccessFlow = ({ isOpen, isHighRisk }) => {
       
       const timer1 = setTimeout(() => setPhase(2), 2000);
       const timer2 = setTimeout(() => setPhase(3), 4000);
-      const timer3 = setTimeout(() => {
-        setPhase(4);
-        setTimeout(() => {
-          navigate('/patient/dashboard');
-        }, 1500); // Redirect after brief pause
-      }, 6500);
-
-      return () => {
-        clearTimeout(timer1);
-        clearTimeout(timer2);
-        clearTimeout(timer3);
-      };
+      
+      if (mlResult) {
+        const timer3 = setTimeout(() => setPhase(4), 6000);
+        const timer4 = setTimeout(() => {
+          setPhase(5);
+          setTimeout(() => navigate('/patient/dashboard'), 2000);
+        }, 12000); // Give user time to read the ML prediction
+        
+        return () => {
+          clearTimeout(timer1); clearTimeout(timer2); clearTimeout(timer3); clearTimeout(timer4);
+        };
+      } else {
+        const timer3 = setTimeout(() => {
+          setPhase(5);
+          setTimeout(() => navigate('/patient/dashboard'), 1500);
+        }, 6500);
+        
+        return () => {
+          clearTimeout(timer1); clearTimeout(timer2); clearTimeout(timer3);
+        };
+      }
     }
-  }, [isOpen, navigate]);
+  }, [isOpen, navigate, mlResult]);
 
   const phases = [
     {
@@ -55,7 +64,7 @@ const RegistrationSuccessFlow = ({ isOpen, isHighRisk }) => {
   ];
 
   return (
-    <AnimatedModal isOpen={isOpen} onClose={() => {}} title="" maxWidth="max-w-md">
+    <AnimatedModal isOpen={isOpen} onClose={() => {}} title="" maxWidth="max-w-lg">
       <div className="py-6 flex flex-col items-center">
         <h2 className="text-2xl font-black text-white mb-8 tracking-tight">Registration Status</h2>
         
@@ -114,9 +123,40 @@ const RegistrationSuccessFlow = ({ isOpen, isHighRisk }) => {
               </motion.div>
             );
           })}
+
+          {mlResult && phase >= 4 && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`p-5 rounded-2xl border border-pink-500/50 bg-pink-900/30 shadow-[0_0_30px_rgba(236,72,153,0.2)] mt-4`}
+            >
+              <h3 className="text-pink-300 font-bold mb-3 flex items-center gap-2">
+                <Activity size={18} /> LightGBM Maternal Risk Prediction
+              </h3>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center bg-black/20 p-2 rounded-lg">
+                  <span className="text-slate-400 text-sm">Risk Level</span>
+                  <span className={`font-black ${mlResult.risk_level === 'HIGH' ? 'text-red-500' : mlResult.risk_level === 'MEDIUM' ? 'text-orange-400' : 'text-green-400'}`}>
+                    {mlResult.risk_level}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center bg-black/20 p-2 rounded-lg">
+                  <span className="text-slate-400 text-sm">Action</span>
+                  <span className="text-pink-100 text-sm font-medium">{mlResult.recommended_action}</span>
+                </div>
+                <div className="flex justify-between items-center bg-black/20 p-2 rounded-lg">
+                  <span className="text-slate-400 text-sm">Lead Time</span>
+                  <span className="text-pink-200 text-sm font-mono">{mlResult.intervention_lead_time}</span>
+                </div>
+                <p className="text-xs text-pink-300/70 mt-3 pt-3 border-t border-pink-500/20 italic">
+                  {mlResult.message}
+                </p>
+              </div>
+            </motion.div>
+          )}
         </div>
 
-        {phase === 4 && (
+        {phase === 5 && (
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}

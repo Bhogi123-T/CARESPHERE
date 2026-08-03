@@ -30,10 +30,10 @@ const MagneticButton = ({ children, className, onClick, variant = 'primary', siz
   };
 
   const variants = {
-    primary: "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-[0_0_20px_rgba(168,85,247,0.4)] border border-white/10 hover:border-white/30",
-    secondary: "bg-slate-800/80 text-white border border-white/10 hover:border-white/30",
-    danger: "bg-gradient-to-r from-red-600 to-pink-600 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)] border border-white/10 hover:border-white/30",
-    success: "bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-[0_0_20px_rgba(20,184,166,0.4)] border border-white/10 hover:border-white/30",
+    primary: "bg-medical-500 text-white shadow-soft hover:shadow-soft-lg hover:bg-medical-600 border border-transparent",
+    secondary: "bg-medical-50 text-medical-600 border border-medical-100 hover:bg-medical-100 hover:border-medical-200",
+    danger: "bg-red-500 text-white shadow-soft hover:shadow-soft-lg hover:bg-red-600 border border-transparent",
+    success: "bg-emerald-500 text-white shadow-soft hover:shadow-soft-lg hover:bg-emerald-600 border border-transparent",
   };
 
   const sizes = {
@@ -51,7 +51,7 @@ const MagneticButton = ({ children, className, onClick, variant = 'primary', siz
       animate={{ x: position.x, y: position.y }}
       transition={{ type: "spring", stiffness: 150, damping: 15, mass: 0.1 }}
       className={cn(
-        "relative rounded-xl font-bold flex items-center justify-center gap-2 overflow-hidden",
+        "relative rounded-full font-bold flex items-center justify-center gap-2 overflow-hidden",
         "before:absolute before:inset-0 before:bg-white/0 hover:before:bg-white/10 before:transition-colors before:duration-300",
         variants[variant],
         sizes[size],

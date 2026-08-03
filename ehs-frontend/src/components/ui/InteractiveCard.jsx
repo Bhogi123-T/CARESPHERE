@@ -23,7 +23,7 @@ const InteractiveCard = ({ children, className, glowColor = 'rgba(168, 85, 247, 
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       className={cn(
-        'relative overflow-hidden rounded-2xl border border-white/10 bg-slate-900/50 backdrop-blur-xl transition-all duration-300',
+        'relative overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-soft transition-all duration-300 hover:shadow-soft-lg hover:-translate-y-1',
         className
       )}
     >
@@ -36,12 +36,12 @@ const InteractiveCard = ({ children, className, glowColor = 'rgba(168, 85, 247, 
         }}
       />
       
-      {/* Border Glow via pseudo element simulation */}
+      {/* Soft Border Glow via pseudo element simulation */}
       <div
         className="pointer-events-none absolute inset-0 z-0 opacity-0 transition-opacity duration-300 rounded-2xl"
         style={{
           opacity,
-          background: `radial-gradient(400px circle at ${position.x}px ${position.y}px, rgba(255,255,255,0.1), transparent 40%)`,
+          background: `radial-gradient(400px circle at ${position.x}px ${position.y}px, rgba(20, 184, 166, 0.1), transparent 40%)`,
           maskImage: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
           maskComposite: 'exclude',
           padding: '1px',

@@ -67,72 +67,70 @@ const HealthMap = () => {
   ];
 
   return (
-    <div className="h-screen flex flex-col bg-slate-900 text-white overflow-hidden">
-      <header className="flex justify-between items-center glass-nav p-4 border-b border-white/10 z-10">
+    <div className="h-screen flex flex-col bg-slate-50 text-slate-800 overflow-hidden">
+      <header className="flex justify-between items-center bg-white/90 backdrop-blur-md p-4 border-b border-slate-200 z-10 shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-yellow-500/20 flex items-center justify-center text-yellow-500 border border-yellow-500/30">
+          <div className="w-12 h-12 rounded-2xl bg-yellow-50 flex items-center justify-center text-yellow-600 border border-yellow-100 shadow-sm">
             <MapIcon size={24} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-wider">COMMUNITY HEALTH MAP</h1>
-            <p className="text-slate-400 text-xs flex items-center gap-1 mt-1 font-medium">
-              Public Access <span className="text-slate-600">•</span> <MapPin size={10} className="text-slate-500"/> {locationName}
+            <h1 className="text-2xl font-bold tracking-wider text-slate-800">COMMUNITY HEALTH MAP</h1>
+            <p className="text-slate-500 text-xs flex items-center gap-1 mt-1 font-medium">
+              Public Access <span className="text-slate-400">•</span> <MapPin size={10} className="text-slate-400"/> {locationName}
             </p>
           </div>
         </div>
-        <button onClick={logout} className="glass-button px-5 py-2 text-red-400 hover:text-red-300 text-sm">Sign Out</button>
+        <button onClick={logout} className="px-5 py-2 text-red-500 hover:text-red-600 hover:bg-red-50 text-sm font-bold border border-red-200 rounded-xl transition-colors">Sign Out</button>
       </header>
 
       <div className="flex flex-1 overflow-hidden relative">
-        <aside className="w-80 bg-slate-900/95 backdrop-blur-xl border-r border-white/10 p-6 flex flex-col gap-6 z-10 shadow-[20px_0_40px_rgba(0,0,0,0.5)]">
-          <h2 className="text-xl font-bold mb-2">Map Legend</h2>
+        <aside className="w-80 bg-white/90 backdrop-blur-md border-r border-slate-200 p-6 flex flex-col gap-6 z-10 shadow-sm">
+          <h2 className="text-xl font-bold mb-2 text-slate-800">Map Legend</h2>
           
           <div className="space-y-4">
-            <div className="flex items-center gap-3 p-3 glass-card border-red-500/30">
-              <div className="w-4 h-4 rounded-full bg-red-500 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.8)]"></div>
-              <span className="font-bold text-red-400">Dengue Zones</span>
+            <div className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-xl shadow-sm">
+              <div className="w-4 h-4 rounded-full bg-red-500 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.4)]"></div>
+              <span className="font-bold text-red-600">Dengue Zones</span>
             </div>
-            <div className="flex items-center gap-3 p-3 glass-card border-yellow-500/30">
-              <div className="w-4 h-4 rounded-full bg-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.8)]"></div>
-              <span className="font-bold text-yellow-400">Heatwave Areas</span>
+            <div className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-xl shadow-sm">
+              <div className="w-4 h-4 rounded-full bg-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.4)]"></div>
+              <span className="font-bold text-yellow-600">Heatwave Areas</span>
             </div>
-            <div className="flex items-center gap-3 p-3 glass-card border-blue-500/30">
-              <div className="w-4 h-4 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]"></div>
-              <span className="font-bold text-blue-400">Flood Areas</span>
+            <div className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-xl shadow-sm">
+              <div className="w-4 h-4 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.4)]"></div>
+              <span className="font-bold text-blue-600">Flood Areas</span>
             </div>
-            <div className="flex items-center gap-3 p-3 glass-card border-green-500/30">
-              <div className="w-4 h-4 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)]"></div>
-              <span className="font-bold text-green-400">Safe Areas</span>
+            <div className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-xl shadow-sm">
+              <div className="w-4 h-4 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.4)]"></div>
+              <span className="font-bold text-green-600">Safe Areas</span>
             </div>
           </div>
 
-          <div className="mt-4 p-5 glass-panel rounded-2xl">
-            <h3 className="font-bold text-sm mb-4 text-slate-300 uppercase tracking-widest">Live Entities</h3>
+          <div className="mt-4 p-5 bg-slate-50 border border-slate-200 rounded-2xl shadow-sm">
+            <h3 className="font-bold text-sm mb-4 text-slate-500 uppercase tracking-widest">Live Entities</h3>
             <ul className="text-sm font-medium space-y-3">
-              <li className="flex items-center gap-3 text-slate-200">
-                <div className="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center"><Building2 size={16}/></div>
-                Hospitals: <span className="text-white font-black">{mockMapData.hospitals.length} Active</span>
+              <li className="flex items-center gap-3 text-slate-600">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100"><Building2 size={16}/></div>
+                Hospitals: <span className="text-slate-800 font-black">{mockMapData.hospitals.length} Active</span>
               </li>
-              <li className="flex items-center gap-3 text-slate-200">
-                <div className="w-8 h-8 rounded-lg bg-red-500/20 text-red-400 flex items-center justify-center"><Truck size={16}/></div>
-                Ambulances: <span className="text-white font-black">{mockMapData.ambulances.length + Object.keys(liveAmbulances).length} Active</span>
+              <li className="flex items-center gap-3 text-slate-600">
+                <div className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center border border-red-100"><Truck size={16}/></div>
+                Ambulances: <span className="text-slate-800 font-black">{mockMapData.ambulances.length + Object.keys(liveAmbulances).length} Active</span>
               </li>
-              <li className="flex items-center gap-3 text-slate-200">
-                <div className="w-8 h-8 rounded-lg bg-green-500/20 text-green-400 flex items-center justify-center"><MapPin size={16}/></div>
-                Volunteers: <span className="text-white font-black">34 Available</span>
+              <li className="flex items-center gap-3 text-slate-600">
+                <div className="w-8 h-8 rounded-lg bg-green-50 text-green-600 flex items-center justify-center border border-green-100"><MapPin size={16}/></div>
+                Volunteers: <span className="text-slate-800 font-black">34 Available</span>
               </li>
             </ul>
           </div>
         </aside>
 
         <main className="flex-1 relative z-0">
-          <MapContainer center={center} zoom={12} style={{ height: '100%', width: '100%' }} zoomControl={false} className={lowDataMode ? 'bg-slate-900' : 'grayscale-[20%] contrast-110'}>
-            {!lowDataMode && (
-              <TileLayer
-                url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
-                attribution='&copy; Google Maps'
-              />
-            )}
+          <MapContainer center={center} zoom={12} style={{ height: '100%', width: '100%' }} zoomControl={false} className="grayscale-[20%] contrast-110">
+            <TileLayer
+              url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+              attribution='&copy; Google Maps'
+            />
             
             {zones.map((zone, i) => (
               <Circle 
