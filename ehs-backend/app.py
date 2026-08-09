@@ -634,6 +634,6 @@ if __name__ == "__main__":
         host="0.0.0.0",
         debug=os.getenv("FLASK_DEBUG", "False") == "True",
         use_reloader=False,
-        port=5000,
+        port=int(os.getenv("PORT", 5000)),
         allow_unsafe_werkzeug=True,  # type: ignore
     )
