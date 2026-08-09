@@ -176,7 +176,10 @@ const LandingPage = () => {
                 transition={{ duration: 0.5, delay: i * 0.1 }}
               >
                 <InteractiveCard glowColor={f.glow} className="h-full p-8 group bg-white/[0.02] border-white/10 hover:border-white/20 backdrop-blur-md rounded-3xl transition-all duration-500 shadow-xl">
-                  <div className={`w-16 h-16 rounded-2xl bg-${f.color}-500/10 border border-${f.color}-500/20 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-${f.color}-500/20 transition-all duration-500 shadow-[0_0_20px_${f.glow}]`}>
+                  <div 
+                    className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-all duration-500"
+                    style={{ backgroundColor: f.glow, borderColor: f.glow, borderWidth: '1px', boxShadow: `0 0 20px ${f.glow}` }}
+                  >
                     {f.icon}
                   </div>
                   <h4 className="font-bold text-2xl mb-3 text-white tracking-tight">{f.title}</h4>
