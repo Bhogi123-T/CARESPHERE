@@ -7,7 +7,7 @@ import api from '../services/api';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { Activity, MapPin, CheckCircle, Clock, Bed, Users, AlertTriangle, Radio, Truck, BrainCircuit } from 'lucide-react';
+import { Activity, MapPin, CheckCircle, Clock, Bed, Users, AlertTriangle, Radio, Truck, BrainCircuit, WifiOff, Heart } from 'lucide-react';
 import { useLocationName } from '../hooks/useLocationName';
 import { useLiveLocation } from '../hooks/useLiveLocation';
 import { getLocationName } from '../services/geocoding';
@@ -682,7 +682,6 @@ const HospitalDashboard = () => {
           </div>
         </div>
       )}
-    </div>
     </div>
   );
 };
