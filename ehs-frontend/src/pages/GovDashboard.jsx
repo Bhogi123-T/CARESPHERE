@@ -44,22 +44,28 @@ const GovDashboard = () => {
   const { kpis, trends, risk_zones, recommendations } = data;
 
   return (
-    <div className="min-h-screen flex flex-col text-white bg-[#1e293b]/50 border border-white/5 overflow-x-hidden pb-12 selection:bg-teal-500/30">
+    <div className="min-h-screen flex flex-col relative text-slate-200 bg-slate-950 overflow-x-hidden pb-12 selection:bg-teal-500/30 transition-colors duration-300">
+      
+      {/* Premium Ambient Background */}
+      <div className="fixed top-[-20%] left-[-10%] w-[50%] h-[50%] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none z-0"></div>
+      <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-teal-600/10 rounded-full blur-[120px] pointer-events-none z-0"></div>
+
+      <div className="relative z-10 flex flex-col h-full w-full">
       {/* Header */}
-      <header className="bg-[#131B2F] border border-white/5/90 backdrop-blur-md border-b border-white/10 p-6 sticky top-0 z-50 shadow-[0_0_15px_rgba(0,0,0,0.3)]">
+      <header className="bg-slate-900/40 backdrop-blur-2xl border-b border-white/10 p-6 sticky top-0 z-50 shadow-[0_4px_30px_rgba(0,0,0,0.1)]">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-teal-50 flex items-center justify-center text-teal-600 border border-teal-100 shadow-[0_0_15px_rgba(0,0,0,0.3)]">
+            <div className="w-14 h-14 rounded-2xl bg-teal-500/10 flex items-center justify-center text-teal-400 border border-teal-500/30 shadow-[0_0_15px_rgba(20,184,166,0.3)]">
               <ShieldCheck size={28} />
             </div>
             <div>
-              <h1 className="text-3xl font-black tracking-tight text-white">Government Analytics Dashboard</h1>
+              <h1 className="text-3xl font-black tracking-tight text-slate-100">Government Analytics Dashboard</h1>
               <p className="text-slate-500 text-xs flex items-center gap-2 font-medium mt-1.5 uppercase tracking-widest">
                 <Badge variant="primary" className="px-2 py-0.5 text-[10px]">State Health Ministry</Badge> <span className="text-slate-500">•</span> Command Center
               </p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={logout} className="text-red-400 hover:text-red-600 hover:bg-red-900/20 uppercase tracking-widest text-xs font-bold px-6">Sign Out</Button>
+          <Button variant="ghost" size="sm" onClick={logout} className="text-red-400 hover:text-red-600 hover:bg-red-500/20 uppercase tracking-widest text-xs font-bold px-6 rounded-xl transition-all">Sign Out</Button>
         </div>
       </header>
 
@@ -247,6 +253,7 @@ const GovDashboard = () => {
         </div>
         
       </main>
+      </div>
     </div>
   );
 };

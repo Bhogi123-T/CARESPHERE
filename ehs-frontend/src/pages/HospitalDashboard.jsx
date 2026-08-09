@@ -210,7 +210,13 @@ const HospitalDashboard = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col relative overflow-hidden bg-slate-950 selection:bg-blue-500/30">
+    <div className="h-screen flex flex-col relative overflow-hidden bg-slate-950 selection:bg-blue-500/30 text-slate-200">
+      
+      {/* Premium Ambient Background */}
+      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none z-0"></div>
+      <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-cyan-600/10 rounded-full blur-[120px] pointer-events-none z-0"></div>
+      
+      <div className="relative z-10 flex flex-col h-full w-full">
       {!isOnline && (
         <div className="bg-red-600/90 backdrop-blur-md text-white text-center py-1.5 px-4 font-black uppercase tracking-widest text-[10px] shadow-[0_0_15px_rgba(220,38,38,0.5)] animate-pulse z-[9999] relative border-b border-red-500 flex items-center justify-center gap-2">
           <WifiOff size={14} /> ⚠️ Rural Offline Mode Active - Using Local Network & Triangulation
@@ -682,6 +688,7 @@ const HospitalDashboard = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

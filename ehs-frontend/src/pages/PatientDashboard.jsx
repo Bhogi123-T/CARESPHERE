@@ -381,7 +381,13 @@ const PatientDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen relative">
+    <div className="min-h-screen relative bg-slate-950 overflow-hidden text-slate-200">
+      
+      {/* Premium Ambient Background */}
+      <div className="fixed top-[-20%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/20 rounded-full blur-[120px] pointer-events-none z-0"></div>
+      <div className="fixed bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-purple-600/20 rounded-full blur-[120px] pointer-events-none z-0"></div>
+      
+      <div className="relative z-10">
       
       {/* Offline Banner & Simulator */}
       {isCurrentlyOffline && (
@@ -427,7 +433,7 @@ const PatientDashboard = () => {
       )}
 
       {/* Header */}
-      <header className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 p-6 transition-colors">
+      <header className="bg-slate-900/40 backdrop-blur-2xl border-b border-white/10 p-6 sticky top-0 z-40 shadow-[0_4px_30px_rgba(0,0,0,0.1)]">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4 md:gap-0 text-center md:text-left">
           <div className="flex flex-col items-center md:items-start">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Welcome, {user?.contact_info || "Bhogeswara Rao"}</h1>
@@ -484,7 +490,7 @@ const PatientDashboard = () => {
           <div className="lg:col-span-2 space-y-8">
             
             {/* Emergency SOS Card */}
-            <div className="bg-white dark:bg-slate-900 border-slate-200 dark:border-red-900/30 backdrop-blur-xl rounded-3xl p-8 relative overflow-hidden border animate-scale-in shadow-soft-lg transition-colors">
+            <div className="bg-slate-900/50 backdrop-blur-xl border border-white/10 rounded-3xl p-8 relative overflow-hidden animate-scale-in shadow-2xl transition-all hover:border-white/20 hover:shadow-[0_0_40px_rgba(239,68,68,0.1)]">
               <div className="absolute top-0 right-0 w-48 h-48 bg-red-100 dark:bg-red-900/10 rounded-full blur-3xl animate-pulse-fast"></div>
 
               <div className="flex items-center gap-5 mb-8 relative z-10">
@@ -524,7 +530,7 @@ const PatientDashboard = () => {
                       <button 
                         key={idx}
                         onClick={() => { setSymptoms(symptom.label); triggerSOS(); }} 
-                        className={`bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-white/10 shadow-sm rounded-xl p-3 flex flex-col items-center justify-center gap-2 hover:bg-${symptom.color}-50 dark:hover:bg-${symptom.color}-900/30 border transition-all group`}
+                        className={`bg-slate-800/50 border-white/10 shadow-lg rounded-2xl p-4 flex flex-col items-center justify-center gap-3 hover:bg-${symptom.color}-500/20 border hover:border-${symptom.color}-500/50 transition-all duration-300 group backdrop-blur-md`}
                       >
                         <span className="text-3xl group-hover:scale-110 transition-transform">{symptom.icon}</span>
                         <span className={`text-${symptom.color}-600 dark:text-${symptom.color}-400 font-bold text-xs text-center leading-tight`}>{symptom.label}</span>
@@ -750,30 +756,30 @@ const PatientDashboard = () => {
             {/* Feature Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in-up stagger-1">
               <Link to="/patient/assistant" className="h-full">
-                <InteractiveCard glowColor="rgba(59, 130, 246, 0.15)" className="h-full flex flex-col items-start group p-6 dark:bg-slate-900 dark:border-slate-800">
-                  <div className="p-3 bg-blue-500/10 rounded-xl mb-4 border border-blue-500/20 text-blue-400 group-hover:scale-110 transition-transform shadow-inner"><Activity size={24}/></div>
-                  <h3 className="font-bold text-base mb-1 text-slate-100 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors leading-tight">{t('patient.assistant')}</h3>
+                <InteractiveCard glowColor="rgba(59, 130, 246, 0.3)" className="h-full flex flex-col items-start group p-6 bg-slate-900/50 backdrop-blur-xl border-white/10 hover:border-blue-500/50 transition-all duration-500 rounded-3xl shadow-xl">
+                  <div className="p-3 bg-blue-500/20 rounded-2xl mb-4 border border-blue-500/30 text-blue-400 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(59,130,246,0.5)]"><Activity size={24}/></div>
+                  <h3 className="font-bold text-lg mb-1 text-white group-hover:text-blue-400 transition-colors leading-tight">{t('patient.assistant')}</h3>
                   <p className="text-xs text-slate-400 mt-auto">Symptom analysis</p>
                 </InteractiveCard>
               </Link>
               <Link to="/medicine-search" className="h-full">
-                <InteractiveCard glowColor="rgba(20, 184, 166, 0.15)" className="h-full flex flex-col items-start group p-6 dark:bg-slate-900 dark:border-slate-800">
-                  <div className="p-3 bg-teal-500/10 rounded-xl mb-4 border border-teal-500/20 text-teal-400 group-hover:scale-110 transition-transform shadow-inner"><Pill size={24}/></div>
-                  <h3 className="font-bold text-base mb-1 text-slate-100 group-hover:text-teal-500 dark:group-hover:text-teal-400 transition-colors leading-tight">Medicines</h3>
+                <InteractiveCard glowColor="rgba(20, 184, 166, 0.3)" className="h-full flex flex-col items-start group p-6 bg-slate-900/50 backdrop-blur-xl border-white/10 hover:border-teal-500/50 transition-all duration-500 rounded-3xl shadow-xl">
+                  <div className="p-3 bg-teal-500/20 rounded-2xl mb-4 border border-teal-500/30 text-teal-400 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(20,184,166,0.5)]"><Pill size={24}/></div>
+                  <h3 className="font-bold text-lg mb-1 text-white group-hover:text-teal-400 transition-colors leading-tight">Medicines</h3>
                   <p className="text-xs text-slate-400 mt-auto">Find nearby stock</p>
                 </InteractiveCard>
               </Link>
               <Link to="/health-records" className="h-full">
-                <InteractiveCard glowColor="rgba(168, 85, 247, 0.15)" className="h-full flex flex-col items-start group p-6 dark:bg-slate-900 dark:border-slate-800">
-                  <div className="p-3 bg-purple-500/10 rounded-xl mb-4 border border-purple-500/20 text-purple-400 group-hover:scale-110 transition-transform shadow-inner"><History size={24}/></div>
-                  <h3 className="font-bold text-base mb-1 text-slate-100 group-hover:text-purple-500 dark:group-hover:text-purple-400 transition-colors leading-tight">Records</h3>
+                <InteractiveCard glowColor="rgba(168, 85, 247, 0.3)" className="h-full flex flex-col items-start group p-6 bg-slate-900/50 backdrop-blur-xl border-white/10 hover:border-purple-500/50 transition-all duration-500 rounded-3xl shadow-xl">
+                  <div className="p-3 bg-purple-500/20 rounded-2xl mb-4 border border-purple-500/30 text-purple-400 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(168,85,247,0.5)]"><History size={24}/></div>
+                  <h3 className="font-bold text-lg mb-1 text-white group-hover:text-purple-400 transition-colors leading-tight">Records</h3>
                   <p className="text-xs text-slate-400 mt-auto">Medical history</p>
                 </InteractiveCard>
               </Link>
               <Link to="/health-map" className="h-full">
-                <InteractiveCard glowColor="rgba(34, 197, 94, 0.15)" className="h-full flex flex-col items-start group p-6 dark:bg-slate-900 dark:border-slate-800">
-                  <div className="p-3 bg-green-500/10 rounded-xl mb-4 border border-green-500/20 text-green-400 group-hover:scale-110 transition-transform shadow-inner"><Stethoscope size={24}/></div>
-                  <h3 className="font-bold text-base mb-1 text-slate-100 group-hover:text-green-500 dark:group-hover:text-green-400 transition-colors leading-tight">{t('patient.map')}</h3>
+                <InteractiveCard glowColor="rgba(34, 197, 94, 0.3)" className="h-full flex flex-col items-start group p-6 bg-slate-900/50 backdrop-blur-xl border-white/10 hover:border-green-500/50 transition-all duration-500 rounded-3xl shadow-xl">
+                  <div className="p-3 bg-green-500/20 rounded-2xl mb-4 border border-green-500/30 text-green-400 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(34,197,94,0.5)]"><Stethoscope size={24}/></div>
+                  <h3 className="font-bold text-lg mb-1 text-white group-hover:text-green-400 transition-colors leading-tight">{t('patient.map')}</h3>
                   <p className="text-xs text-slate-400 mt-auto">Locate clinics</p>
                 </InteractiveCard>
               </Link>
@@ -1032,6 +1038,7 @@ const PatientDashboard = () => {
         }}
       />
 
+      </div>
     </div>
   );
 };

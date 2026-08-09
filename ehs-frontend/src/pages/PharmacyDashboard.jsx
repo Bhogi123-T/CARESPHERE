@@ -112,15 +112,15 @@ const PharmacyDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col relative overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 pb-10 selection:bg-teal-500/30 transition-colors duration-300">
+    <div className="min-h-screen flex flex-col relative overflow-hidden bg-slate-950 text-slate-200 pb-10 selection:bg-teal-500/30 transition-colors duration-300">
       
       {/* Background Ambience */}
       <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-teal-200/40 dark:bg-teal-900/20 blur-[120px] animate-float"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-200/40 dark:bg-emerald-900/20 blur-[100px] animate-float-delayed"></div>
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-teal-600/10 blur-[120px] animate-float"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-600/10 blur-[100px] animate-float-delayed"></div>
       </div>
 
-      <header className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 p-4 flex justify-between items-center z-50 sticky top-0 shadow-sm transition-colors duration-300">
+      <header className="bg-slate-900/40 backdrop-blur-2xl border-b border-white/10 p-4 flex justify-between items-center z-50 sticky top-0 shadow-[0_4px_30px_rgba(0,0,0,0.1)] transition-colors duration-300">
         <motion.div 
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -155,9 +155,9 @@ const PharmacyDashboard = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="bg-white dark:bg-slate-900 rounded-3xl p-10 border border-slate-100 dark:border-slate-800 shadow-soft-lg relative overflow-hidden transition-colors duration-300"
+          className="bg-slate-900/50 backdrop-blur-xl rounded-3xl p-10 border border-white/10 shadow-2xl relative overflow-hidden transition-all duration-300 hover:shadow-[0_0_40px_rgba(20,184,166,0.1)] hover:border-white/20"
         >
-          <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-teal-100/50 dark:bg-teal-900/20 rounded-full blur-[80px] pointer-events-none"></div>
+          <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-teal-600/20 rounded-full blur-[80px] pointer-events-none"></div>
 
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 relative z-10 gap-6">
             <div>

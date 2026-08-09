@@ -344,7 +344,12 @@ const AmbulanceDashboard = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col relative overflow-hidden bg-[#0f172a] selection:bg-blue-500/30">
+    <div className="h-screen flex flex-col relative overflow-hidden bg-slate-950 selection:bg-blue-500/30 text-slate-200">
+      
+      {/* Premium Ambient Background */}
+      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-orange-600/10 rounded-full blur-[120px] pointer-events-none z-0"></div>
+      <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-red-600/10 rounded-full blur-[120px] pointer-events-none z-0"></div>
+      
       {!isOnline && (
         <div className="bg-red-600/90 backdrop-blur-md text-white text-center py-1.5 px-4 font-black uppercase tracking-widest text-[10px] shadow-sm animate-pulse z-[9999] relative border-b border-red-500">
           ⚠️ Rural Offline Mode Active - Using Satellite Triangulation

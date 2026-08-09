@@ -181,32 +181,38 @@ const VolunteerDashboard = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-[#0B1120] text-white overflow-hidden selection:bg-green-900/200/30">
+    <div className="h-screen flex flex-col relative bg-slate-950 text-slate-200 overflow-hidden selection:bg-green-500/30 transition-colors duration-300">
+      
+      {/* Premium Ambient Background */}
+      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-green-600/10 rounded-full blur-[120px] pointer-events-none z-0"></div>
+      <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-emerald-600/10 rounded-full blur-[120px] pointer-events-none z-0"></div>
+      
+      <div className="relative z-10 flex flex-col h-full w-full">
       {!isOnline && (
         <div className="w-full bg-red-600 text-white text-xs font-black uppercase tracking-widest text-center py-2 animate-pulse z-[9999] relative">
           ⚠️ NO INTERNET CONNECTION - OFFLINE GPS TRACKING ACTIVE (COMMUNITY TASKS ONLY)
         </div>
       )}
-      <header className="flex flex-col md:flex-row justify-between items-center bg-[#0B1120]/90 backdrop-blur-xl p-4 border-b border-white/10 z-10 gap-4 md:gap-0 shadow-[0_0_15px_rgba(0,0,0,0.3)]">
+      <header className="flex flex-col md:flex-row justify-between items-center bg-slate-900/40 backdrop-blur-2xl p-4 border-b border-white/10 z-10 gap-4 md:gap-0 shadow-[0_4px_30px_rgba(0,0,0,0.1)]">
         <div className="flex items-center gap-4 w-full md:w-auto">
-          <div className="w-12 h-12 rounded-2xl bg-green-900/20 flex items-center justify-center text-green-400 border border-green-800 shadow-[0_0_15px_rgba(0,0,0,0.3)]">
+          <div className="w-12 h-12 rounded-2xl bg-green-500/10 flex items-center justify-center text-green-400 border border-green-500/30 shadow-[0_0_15px_rgba(34,197,94,0.3)]">
             <Users size={24} />
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-wider text-green-400">COMMUNITY FIRST RESPONDER</h1>
             <p className="text-slate-500 text-xs flex items-center gap-1 mt-1 font-medium">
               Logged in as {user?.role.toUpperCase()} <span className="text-slate-300">•</span>
-              {isTracking ? <span className="relative flex h-2 w-2 mr-1"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-green-900/200"></span></span> : <MapPin size={10} className="text-slate-500"/>}
+              {isTracking ? <span className="relative flex h-2 w-2 mr-1"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span></span> : <MapPin size={10} className="text-slate-500"/>}
               {locationName} {liveLocation ? `(${liveLocation.lat.toFixed(4)}, ${liveLocation.lng.toFixed(4)})` : ''}
             </p>
           </div>
         </div>
-        <button onClick={logout} className="px-5 py-2 text-red-400 hover:text-red-600 hover:bg-red-900/20 rounded-xl transition-all font-bold text-sm">Sign Out</button>
+        <button onClick={logout} className="px-5 py-2 text-red-400 hover:text-red-600 hover:bg-red-500/20 rounded-xl transition-all font-bold text-sm">Sign Out</button>
       </header>
 
       <div className="flex flex-col-reverse md:flex-row flex-1 overflow-hidden relative">
         {/* Sidebar */}
-        <aside className="w-full md:w-[450px] h-[50vh] md:h-full bg-[#131B2F] border border-white/5 md:border-r border-t md:border-t-0 border-white/10 overflow-y-auto p-4 md:p-6 flex flex-col gap-8 z-10 shadow-soft-lg custom-scrollbar shrink-0">
+        <aside className="w-full md:w-[450px] h-[50vh] md:h-full bg-slate-900/80 backdrop-blur-xl border border-white/5 md:border-r border-t md:border-t-0 border-white/10 overflow-y-auto p-4 md:p-6 flex flex-col gap-8 z-10 shadow-[0_0_40px_rgba(0,0,0,0.3)] custom-scrollbar shrink-0">
           
           {/* Live SOS Section */}
           <section>
@@ -441,6 +447,7 @@ const VolunteerDashboard = () => {
             ))}
           </MapContainer>
         </main>
+      </div>
       </div>
     </div>
   );
