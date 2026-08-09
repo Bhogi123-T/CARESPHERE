@@ -16,6 +16,7 @@ import MagneticButton from '../components/ui/MagneticButton';
 import AnimatedCounter from '../components/ui/AnimatedCounter';
 import TimeAgo from '../components/ui/TimeAgo';
 import { useNetworkState } from '../hooks/useNetworkState';
+import localforage from 'localforage';
 
 // --- OFFLINE SAFE ICONS ---
 const defaultIcon = L.divIcon({
@@ -62,6 +63,24 @@ const VolunteerDashboard = () => {
   const [lowDataMode, setLowDataMode] = useState(false); // Default Hyderabad
   const locationName = useLocationName();
   const { location: liveLocation, isTracking } = useLiveLocation();
+  const [tasks, setTasks] = useState([]);
+
+  useEffect(() => {
+    const loadTasks = async () => {
+      try {
+        const cached = await localforage.getItem('volunteer_tasks');
+        if (cached && cached.length > 0) {
+          setTasks(cached);
+        } else {
+          setTasks(mockVolunteerTasks);
+          await localforage.setItem('volunteer_tasks', mockVolunteerTasks);
+        }
+      } catch (e) {
+        setTasks(mockVolunteerTasks);
+      }
+    };
+    loadTasks();
+  }, []);
 
   // Helper function to calculate distance using Haversine formula
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
@@ -284,12 +303,13 @@ const VolunteerDashboard = () => {
 
           {/* Community Tasks Section */}
           <section>
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-white">
-              <Users className="text-green-400" />
-              Nearby Emergency Tasks
-            </h2>
-            <div className="space-y-4">
-              {mockVolunteerTasks.map(task => (
+                    <h2 className="text-xl font-bold flex items-center gap-2 mb-6">
+                      <Clock size={20} className="text-green-500" />
+                      Assigned Tasks
+                      {!isOnline && <span className="ml-2 text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full border border-slate-700">Offline Cache</span>}
+                    </h2>
+                    <div className="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar pr-2">
+                      {tasks.map((task, idx) => (
                 <div key={task.id} className="bg-[#131B2F] border border-white/5 p-5 rounded-2xl border-l-4 border-l-green-500 hover:bg-[#1e293b]/50 border border-white/5 transition-colors group shadow-[0_0_15px_rgba(0,0,0,0.3)] border-t border-r border-b border-white/10">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-bold text-lg text-white group-hover:text-green-400 transition-colors">{task.title}</h3>

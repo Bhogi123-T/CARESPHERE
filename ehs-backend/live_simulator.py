@@ -1,3 +1,4 @@
+import os
 import time
 import random
 import socketio
@@ -6,8 +7,9 @@ sio = socketio.Client()
 
 def simulate():
     try:
-        print("Connecting to server...")
-        sio.connect('http://localhost:5000')
+        backend_url = os.environ.get("BACKEND_URL", "http://localhost:5000")
+        print(f"Connecting to server at {backend_url}...")
+        sio.connect(backend_url)
         print("Connected! Starting simulation...")
     except Exception as e:
         print(f"Connection failed: {e}")

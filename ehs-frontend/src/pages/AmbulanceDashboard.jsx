@@ -18,6 +18,7 @@ import Badge from '../components/ui/Badge';
 import ThemeToggle from '../components/ui/ThemeToggle';
 import MagneticButton from '../components/ui/MagneticButton';
 import AnimatedCounter from '../components/ui/AnimatedCounter';
+import PremiumCard from '../components/ui/PremiumCard';
 
 import { useNetworkState } from '../hooks/useNetworkState';
 
@@ -377,22 +378,22 @@ const AmbulanceDashboard = () => {
 
       <div className="flex flex-col-reverse md:flex-row flex-1 overflow-hidden relative">
         {/* Sidebar */}
-        <aside className="w-full md:w-[450px] h-[50vh] md:h-full bg-[#0f172a] border-white/5 backdrop-blur-xl md:border-r border-t md:border-t-0 border-white/10 overflow-y-auto p-4 md:p-6 flex flex-col gap-6 z-10 custom-scrollbar shadow-soft-lg shrink-0 transition-colors duration-300">
+        <aside className="w-full md:w-[450px] h-[50vh] md:h-full premium-glass-panel bg-slate-900/90 rounded-none border-t md:border-t-0 md:border-r border-slate-800 overflow-y-auto p-4 md:p-6 flex flex-col gap-6 z-10 custom-scrollbar relative shrink-0 transition-colors duration-300">
           <h2 className="text-xl font-bold flex items-center gap-2 text-slate-100">
             <span className="w-2 h-2 rounded-full bg-blue-500 shadow-sm"></span>
             Dispatch Console
           </h2>
           
           {!displayEmergency ? (
-             <div className="text-center p-12 bg-[#1e293b]/50 backdrop-blur-md border-white/5 border border-white/10/50 rounded-3xl h-full flex flex-col items-center justify-center animate-fade-in-up shadow-sm">
+             <PremiumCard className="text-center p-12 h-full flex flex-col items-center justify-center bg-slate-800/80 border-slate-700/50">
                <div className="w-24 h-24 rounded-full bg-green-50 dark:bg-green-900/30 flex items-center justify-center border border-green-100 dark:border-green-800 mb-6 drop-shadow-sm">
                  <CheckCircle className="w-12 h-12 text-green-400 dark:text-green-500 animate-pulse-slow" />
                </div>
                <p className="text-2xl font-black text-slate-200 uppercase tracking-wider">Standby Mode</p>
                <p className="text-sm mt-3 text-slate-400 font-medium leading-relaxed">No active emergencies in your assigned sector.</p>
-             </div>
+             </PremiumCard>
           ) : (
-            <div className="bg-[#1e293b] border-white/5 border border-white/10 rounded-xl p-5 relative overflow-hidden shadow-soft">
+            <PremiumCard className="bg-slate-800/80 border-slate-700/50 p-5">
               {displayEmergency.status === 'PENDING' && (
                 <div className="absolute top-0 left-0 w-full h-1 bg-red-500"></div>
               )}
@@ -462,24 +463,28 @@ const AmbulanceDashboard = () => {
               </div>
 
               {/* Actions */}
-              <div className="flex gap-4">
+              <div className="flex gap-4 mt-6">
                 {displayEmergency.status === 'PENDING' ? (
-                  <Button 
-                    variant="danger"
-                    onClick={() => acceptEmergency(displayEmergency.id)}
-                    className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-sm font-bold text-white transition-colors shadow-sm"
-                  >
-                    Accept Dispatch
-                  </Button>
+                  <MagneticButton className="flex-1">
+                    <Button 
+                      variant="danger"
+                      onClick={() => acceptEmergency(displayEmergency.id)}
+                      className="w-full py-3 bg-red-500 hover:bg-red-600 text-sm font-bold text-white transition-colors shadow-sm rounded-xl"
+                    >
+                      Accept Dispatch
+                    </Button>
+                  </MagneticButton>
                 ) : tripPhase === 'to_patient' ? (
                   <div className="flex-1 flex flex-col gap-4">
-                    <Button 
-                      variant="primary" 
-                      className="w-full py-3 text-sm font-bold bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm text-white"
-                      onClick={() => setTripPhase('to_hospital')}
-                    >
-                      Mark Patient Picked Up
-                    </Button>
+                    <MagneticButton>
+                      <Button 
+                        variant="primary" 
+                        className="w-full py-3 text-sm font-bold bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm text-white rounded-xl"
+                        onClick={() => setTripPhase('to_hospital')}
+                      >
+                        Mark Patient Picked Up
+                      </Button>
+                    </MagneticButton>
                   </div>
                 ) : (
                   <div className="flex-1 flex flex-col gap-4">
@@ -498,24 +503,25 @@ const AmbulanceDashboard = () => {
                           <p className="text-sm font-bold text-green-500 dark:text-green-400">BED READY</p>
                         </div>
                       </div>
-                      
-                      <Button 
-                        variant="success" 
-                        className="w-full py-4 text-sm font-black uppercase tracking-widest bg-green-600 hover:bg-green-500 shadow-[0_0_20px_rgba(34,197,94,0.4)] text-white"
-                        onClick={() => finishTrip()}
-                      >
-                        PATIENT DELIVERED & COMPLETE TRIP
-                      </Button>
+                      <MagneticButton>
+                        <Button 
+                          variant="success" 
+                          className="w-full py-4 text-sm font-black uppercase tracking-widest bg-green-600 hover:bg-green-500 shadow-[0_0_20px_rgba(34,197,94,0.4)] text-white"
+                          onClick={() => finishTrip()}
+                        >
+                          PATIENT DELIVERED & COMPLETE TRIP
+                        </Button>
+                      </MagneticButton>
                     </div>
                   </div>
                 )}
               </div>
-            </div>
+            </PremiumCard>
           )}
 
           {/* Enhanced DQN Indicator in Sidebar */}
           {dqnData && displayEmergency && (
-            <div className="bg-[#1e293b]/50 backdrop-blur-md border-white/5 border border-white/10 rounded-xl p-4 mt-4 relative shrink-0 shadow-sm">
+            <PremiumCard className="p-4 mt-4 relative shrink-0 shadow-sm bg-slate-800/80 border-slate-700/50">
               <div className="absolute top-4 right-4 flex h-2 w-2">
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
               </div>
@@ -523,7 +529,7 @@ const AmbulanceDashboard = () => {
                 <Navigation size={16} /> Traffic Analysis Active
               </h3>
               <p className="text-xs text-slate-400 mt-1">Routing optimized by telemetry data.</p>
-            </div>
+            </PremiumCard>
           )}
 
           {/* Vehicle Status Widget */}

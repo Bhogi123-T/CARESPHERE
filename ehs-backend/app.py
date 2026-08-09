@@ -187,6 +187,60 @@ def update_profile():
         }
     }), 200
 
+@app.route("/api/patient/profile", methods=["GET"])
+@jwt_required()
+def get_patient_profile():
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+        
+    profile = PatientProfile.query.filter_by(user_id=user_id).first()
+    if not profile:
+        # If no profile exists yet, return some defaults so the frontend doesn't crash
+        # or we could return 404 and let the frontend handle it.
+        # Returning a dummy profile for the MVP:
+        return jsonify({
+            "id": "mock_id",
+            "name": user.name or "Unknown",
+            "age": 30,
+            "blood_group": "Unknown",
+            "medical_history": "None",
+            "family_contact": "9999999999",
+            "expected_delivery_date": None,
+            "risk_level": "Low"
+        }), 200
+        
+    return jsonify({
+        "id": profile.id,
+        "name": profile.name,
+        "age": profile.age,
+        "blood_group": profile.blood_group,
+        "medical_history": profile.medical_history,
+        "family_contact": profile.family_contact,
+        "expected_delivery_date": profile.expected_delivery_date.isoformat() if profile.expected_delivery_date else None,
+        "risk_level": profile.risk_level
+    }), 200
+
+@app.route("/api/abdm/fetch-profile", methods=["POST"])
+@jwt_required(optional=True)
+def abdm_fetch_profile():
+    data = request.json
+    abha_id = data.get("abha_id")
+    
+    if not abha_id or len(abha_id.replace('-', '')) != 14:
+        return jsonify({"msg": "Invalid ABHA ID"}), 400
+        
+    return jsonify({
+        "msg": "Success",
+        "data": {
+            "blood_group": "O+",
+            "medical_history": "Hypertension diagnosed 2021",
+            "allergies": "Penicillin, Peanuts",
+            "past_surgeries": "Appendectomy (2018)"
+        }
+    }), 200
+
 
 # --- SocketIO Events ---
 

@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { getLocationName } from '../services/geocoding';
 import { io } from 'socket.io-client';
 import { BACKEND_URL } from '../services/api';
+import localforage from 'localforage';
 import { 
   AlertCircle, CheckCircle2, Activity, HeartPulse, 
   Baby, ThermometerSun, Pill, History, Stethoscope, UserPlus, MapPin, Navigation, Truck,
@@ -31,6 +32,7 @@ import AnimatedModal from '../components/ui/AnimatedModal';
 import TeleConsultModal from '../components/ui/TeleConsultModal';
 import ZeroSignalModal from '../components/ui/ZeroSignalModal';
 import AgentWidget from '../components/ui/AgentWidget';
+import AIPredictivePanel from '../components/ui/AIPredictivePanel';
 
 // --- OFFLINE SAFE ICONS ---
 const defaultIcon = L.divIcon({
@@ -98,8 +100,9 @@ const PatientDashboard = () => {
   const [activeEmergencyDetails, setActiveEmergencyDetails] = useState(null);
   const [responder, setResponder] = useState('');
   const [offline, setOffline] = useState(!navigator.onLine);
+  const [forceSmsMode, setForceSmsMode] = useState(false);
   const [simulateOffline, setSimulateOffline] = useState(false);
-  const isCurrentlyOffline = offline || simulateOffline;
+  const isCurrentlyOffline = offline || simulateOffline || forceSmsMode;
   const [locationName, setLocationName] = useState('Detecting Location...');
   const [movingStatus, setMovingStatus] = useState(null); // 'YES', 'NO', null
   const [smartRoute, setSmartRoute] = useState(null);
@@ -137,6 +140,7 @@ const PatientDashboard = () => {
       try {
         const res = await api.get('/patient/profile');
         setProfile(res.data);
+        await localforage.setItem('patient_profile', res.data);
         
         if (res.data.expected_delivery_date) {
           const edd = new Date(res.data.expected_delivery_date);
@@ -148,7 +152,12 @@ const PatientDashboard = () => {
           }
         }
       } catch (err) {
-        setProfile(null);
+        const cachedProfile = await localforage.getItem('patient_profile');
+        if (cachedProfile) {
+          setProfile(cachedProfile);
+        } else {
+          setProfile(null);
+        }
       } finally {
         setLoadingProfile(false);
       }
@@ -440,6 +449,13 @@ const PatientDashboard = () => {
               <Activity size={14} className={lowDataMode ? 'animate-pulse' : ''} />
               2G/Low Data Mode
             </button>
+            <button 
+              onClick={() => setForceSmsMode(!forceSmsMode)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${forceSmsMode ? 'bg-red-50 text-red-500 border-red-200 dark:bg-red-900/30 dark:border-red-700/50 dark:text-red-400' : 'bg-white text-slate-500 border-slate-200 hover:text-slate-800 shadow-sm dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:text-white'}`}
+            >
+              <Activity size={14} className={forceSmsMode ? 'animate-pulse' : ''} />
+              Force SMS Mode
+            </button>
             <LanguageToggle />
             <ThemeToggle />
             <Button variant="ghost" size="sm" onClick={logout} className="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
@@ -459,6 +475,9 @@ const PatientDashboard = () => {
             </div>
           </div>
         )}
+        
+        <AIPredictivePanel role="patient" />
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
           {/* Main Column - SOS & Quick Actions */}

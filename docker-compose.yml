@@ -38,11 +38,23 @@ services:
       context: ./ehs-frontend
       dockerfile: Dockerfile
       args:
-        - VITE_API_URL=http://localhost:5000 # Update this for real cloud deployments (e.g. https://api.yourdomain.com)
+        - VITE_API_URL=${VITE_API_URL} # Uses fallback in api.js if not provided
     container_name: ehs-frontend
     restart: always
     ports:
       - "80:80"
+    depends_on:
+      - backend
+
+  simulator:
+    build:
+      context: ./ehs-backend
+      dockerfile: Dockerfile
+    container_name: ehs-simulator
+    restart: always
+    command: python live_simulator.py
+    environment:
+      - BACKEND_URL=http://backend:5000
     depends_on:
       - backend
 

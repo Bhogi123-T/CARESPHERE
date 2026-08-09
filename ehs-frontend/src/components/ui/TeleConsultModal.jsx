@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Mic, MicOff, Video, VideoOff, PhoneOff } from 'lucide-react';
 import AnimatedModal from './AnimatedModal';
+import AIVitalScanner from './AIVitalScanner';
 
 import { useAuth } from '../../context/AuthContext';
 
@@ -55,12 +56,18 @@ const TeleConsultModal = ({ isOpen, onClose }) => {
               <p className="text-slate-300 font-medium animate-pulse">Establishing Secure Connection...</p>
             </div>
           ) : (
-            <iframe
-              src={`https://meet.jit.si/CareSphere_TeleConsult_${user?.id || 'guest'}#config.prejoinPageEnabled=false`}
-              allow="camera; microphone; fullscreen; display-capture; autoplay"
-              className="w-full h-full border-0"
-              title="Secure Tele-Consultation"
-            />
+            <>
+              <iframe
+                src={`https://meet.jit.si/CareSphere_TeleConsult_${user?.id || 'guest'}#config.prejoinPageEnabled=false`}
+                allow="camera; microphone; fullscreen; display-capture; autoplay"
+                className="w-full h-full border-0"
+                title="Secure Tele-Consultation"
+              />
+              {/* Floating AI Vital Scanner */}
+              <div className="absolute right-6 top-24 z-30 transform scale-75 origin-top-right">
+                <AIVitalScanner />
+              </div>
+            </>
           )}
         </div>
 

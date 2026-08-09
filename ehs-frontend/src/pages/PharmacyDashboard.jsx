@@ -241,13 +241,13 @@ const PharmacyDashboard = () => {
             </AnimatePresence>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8 mt-12 relative z-10">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12 relative z-10 items-stretch">
             {/* E-Prescription Verifier - Premium UI */}
             <motion.div 
                initial={{ opacity: 0, y: 20 }}
                animate={{ opacity: 1, y: 0 }}
                transition={{ delay: 0.3 }}
-               className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] relative overflow-hidden group"
+               className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] relative overflow-hidden group h-full flex flex-col"
             >
                {/* Decorative Background */}
                <div className="absolute top-[-50%] right-[-20%] w-96 h-96 bg-blue-400/10 dark:bg-blue-500/10 blur-[80px] rounded-full pointer-events-none transition-transform duration-700 group-hover:scale-110"></div>
@@ -348,7 +348,7 @@ const PharmacyDashboard = () => {
                        ))}
                      </div>
                      
-                     <div className="flex gap-4">
+                     <div className="mt-auto pt-8 flex gap-4">
                        <button 
                          onClick={() => { setVerifiedRx(null); setRxId(''); }} 
                          className="px-6 py-3 text-slate-500 dark:text-slate-400 font-bold text-sm hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
@@ -376,7 +376,7 @@ const PharmacyDashboard = () => {
                initial={{ opacity: 0, y: 20 }}
                animate={{ opacity: 1, y: 0 }}
                transition={{ delay: 0.4 }}
-               className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] relative overflow-hidden group"
+               className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] relative overflow-hidden group h-full flex flex-col"
             >
                {/* Decorative Background */}
                <div className="absolute top-[-20%] left-[-20%] w-64 h-64 bg-orange-400/10 dark:bg-orange-500/10 blur-[80px] rounded-full pointer-events-none transition-transform duration-700 group-hover:scale-110"></div>
@@ -430,24 +430,69 @@ const PharmacyDashboard = () => {
                     </div>
                  </div>
                  
-                 <MagneticButton 
-                   variant={orderSuccess ? "success" : "primary"}
-                   onClick={handleAutoOrder}
-                   disabled={isOrdering || orderSuccess}
-                   className={`w-full py-4 rounded-xl text-sm font-black uppercase tracking-widest shadow-[0_8px_25px_rgba(249,115,22,0.3)] flex items-center justify-center gap-3 transition-all duration-500 ${orderSuccess ? 'bg-gradient-to-r from-green-500 to-emerald-500 shadow-[0_8px_25px_rgba(16,185,129,0.3)] border-none text-white' : 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 border-none text-white'} disabled:opacity-90 disabled:scale-100`}
-                 >
-                   {isOrdering ? (
-                     <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Handshaking with Supplier Node...</>
-                   ) : orderSuccess ? (
-                     <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex items-center gap-2">
-                       <Check size={20} /> Order Dispatched • ETA: 2 Hours
-                     </motion.div>
-                   ) : (
-                     <><Truck size={18}/> Auto-Order from Regional Hub</>
-                   )}
-                 </MagneticButton>
+                 <div className="mt-auto pt-8">
+                   <MagneticButton 
+                     variant={orderSuccess ? "success" : "primary"}
+                     onClick={handleAutoOrder}
+                     disabled={isOrdering || orderSuccess}
+                     className={`w-full py-4 rounded-xl text-sm font-black uppercase tracking-widest shadow-[0_8px_25px_rgba(249,115,22,0.3)] flex items-center justify-center gap-3 transition-all duration-500 ${orderSuccess ? 'bg-gradient-to-r from-green-500 to-emerald-500 shadow-[0_8px_25px_rgba(16,185,129,0.3)] border-none text-white' : 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 border-none text-white'} disabled:opacity-90 disabled:scale-100`}
+                   >
+                     {isOrdering ? (
+                       <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Handshaking with Supplier Node...</>
+                     ) : orderSuccess ? (
+                       <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex items-center gap-2">
+                         <Check size={20} /> Order Dispatched • ETA: 2 Hours
+                       </motion.div>
+                     ) : (
+                       <><Truck size={18}/> Auto-Order from Regional Hub</>
+                     )}
+                   </MagneticButton>
+                 </div>
                </div>
             </motion.div>
+             {/* Critical Rural Supplies Alert - Premium UI */}
+             <motion.div 
+               initial={{ opacity: 0, y: 20 }}
+               animate={{ opacity: 1, y: 0 }}
+               transition={{ delay: 0.5 }}
+               className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 rounded-3xl p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] relative overflow-hidden group lg:col-span-1 md:col-span-2 h-full flex flex-col"
+             >
+               <div className="absolute top-[-20%] right-[-20%] w-64 h-64 bg-red-400/10 dark:bg-red-500/10 blur-[80px] rounded-full pointer-events-none transition-transform duration-700 group-hover:scale-110"></div>
+               
+               <div className="flex items-center justify-between mb-8 relative z-10">
+                 <h3 className="text-xl font-black flex items-center gap-3 text-slate-800 dark:text-slate-100 uppercase tracking-widest drop-shadow-sm">
+                   <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-900/30 flex items-center justify-center text-red-500 border border-red-100 dark:border-red-800/50 shadow-sm animate-pulse">
+                     <AlertTriangle size={20} /> 
+                   </div>
+                   Rural Alert
+                 </h3>
+                 <span className="flex items-center gap-1.5 px-3 py-1 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400 rounded-full text-[10px] font-bold uppercase tracking-widest border border-red-200 dark:border-red-700">
+                   Priority Level 1
+                 </span>
+               </div>
+
+               <div className="space-y-4 relative z-10">
+                 <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 p-4 rounded-xl flex items-center justify-between group/item transition-colors hover:bg-red-100 dark:hover:bg-red-900/40">
+                    <div>
+                      <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">Snake Anti-Venom</p>
+                      <p className="text-xs text-red-500 font-medium">Critical: Only 2 vials left</p>
+                    </div>
+                    <div className="text-right">
+                      <MagneticButton size="sm" className="bg-red-600 hover:bg-red-500 px-3 py-1 text-[10px] shadow-none text-white rounded">Request</MagneticButton>
+                    </div>
+                 </div>
+
+                 <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800/50 p-4 rounded-xl flex items-center justify-between group/item transition-colors hover:bg-orange-100 dark:hover:bg-orange-900/40">
+                    <div>
+                      <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">Maternal Bleeding Kit</p>
+                      <p className="text-xs text-orange-500 font-medium">Low: 5 kits remaining</p>
+                    </div>
+                    <div className="text-right">
+                      <MagneticButton size="sm" className="bg-orange-600 hover:bg-orange-500 px-3 py-1 text-[10px] shadow-none text-white rounded">Request</MagneticButton>
+                    </div>
+                 </div>
+               </div>
+             </motion.div>
           </div>
         </motion.div>
       </main>

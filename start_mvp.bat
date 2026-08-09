@@ -10,6 +10,9 @@ start "CareSphere - Backend" cmd /k "cd ehs-backend && IF EXIST venv\Scripts\act
 echo Starting Frontend Server (React/Vite)...
 start "CareSphere - Frontend" cmd /k "cd ehs-frontend && npm run dev"
 
+echo Starting Live Simulator...
+start "CareSphere - Simulator" cmd /k "cd ehs-backend && IF EXIST venv\Scripts\activate (call venv\Scripts\activate) && python live_simulator.py"
+
 echo.
 echo ========================================================
 echo Both servers have been launched in separate windows!

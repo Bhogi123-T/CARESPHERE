@@ -17,6 +17,19 @@ const ProtectedRoute = ({ children }) => {
     </>
   );
 };
+
+const DashboardRedirect = () => {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role === 'hospital') return <Navigate to="/hospital/dashboard" replace />;
+  if (user.role === 'ambulance') return <Navigate to="/ambulance/dashboard" replace />;
+  if (user.role === 'volunteer') return <Navigate to="/volunteer/dashboard" replace />;
+  if (user.role === 'pharmacy') return <Navigate to="/pharmacy/dashboard" replace />;
+  if (user.role === 'blood_donor') return <Navigate to="/donor/dashboard" replace />;
+  if (user.role === 'government') return <Navigate to="/government/dashboard" replace />;
+  return <Navigate to="/patient/dashboard" replace />;
+};
+
 import ProfileCompletionModal from './components/ui/ProfileCompletionModal';
 import PatientDashboard from './pages/PatientDashboard';
 import PreRegistration from './pages/PreRegistration';
@@ -77,6 +90,13 @@ const AnimatedRoutes = () => {
         <Route path="/login" element={<PageTransition><LoginPage /></PageTransition>} />
         <Route path="/register" element={<PageTransition><RegisterPage /></PageTransition>} />
         
+        {/* Generic Dashboard Route - Redirects based on role */}
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            <DashboardRedirect />
+          </ProtectedRoute>
+        } />
+
         {/* Patient Routes */}
         <Route path="/patient/dashboard" element={<ProtectedRoute><PageTransition><PatientDashboard /></PageTransition></ProtectedRoute>} />
         <Route path="/patient/pre-register" element={<ProtectedRoute><PageTransition><PreRegistration /></PageTransition></ProtectedRoute>} />

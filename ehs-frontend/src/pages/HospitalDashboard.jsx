@@ -16,9 +16,11 @@ import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import ThemeToggle from '../components/ui/ThemeToggle';
 import AnimatedCounter from '../components/ui/AnimatedCounter';
+import MagneticButton from '../components/ui/MagneticButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNetworkState } from '../hooks/useNetworkState';
 import { AreaChart, Area, ResponsiveContainer, Tooltip as RechartsTooltip, YAxis } from 'recharts';
+import AIPredictivePanel from '../components/ui/AIPredictivePanel';
 
 // --- OFFLINE SAFE ICONS ---
 const defaultIcon = L.divIcon({
@@ -197,6 +199,16 @@ const HospitalDashboard = () => {
     }
   };
 
+  const handleDispatchVolunteer = (id) => {
+    // In a real app this would hit a backend endpoint that sends an SMS to the nearest ASHA worker.
+    // For MVP, we simulate the action and show a success toast.
+    addToast(
+      'ASHA WORKER DISPATCHED: Alert sent to nearest local volunteer via SMS for immediate first-aid.',
+      'success',
+      8000
+    );
+  };
+
   return (
     <div className="h-screen flex flex-col relative overflow-hidden bg-slate-950 selection:bg-blue-500/30">
       {!isOnline && (
@@ -260,9 +272,10 @@ const HospitalDashboard = () => {
       </header>
 
       <div className="flex flex-col-reverse md:flex-row flex-1 overflow-y-auto md:overflow-hidden relative">
-      <div className="flex flex-col-reverse md:flex-row flex-1 overflow-y-auto md:overflow-hidden relative">
         {/* Sidebar */}
-        <aside className="w-full md:w-[420px] h-[50vh] md:h-full bg-slate-900/90 backdrop-blur-md rounded-none md:border-r border-t md:border-t-0 border-slate-800 shadow-[4px_0_24px_rgba(0,0,0,0.2)] overflow-y-auto p-4 md:p-6 flex flex-col gap-6 z-10 custom-scrollbar relative">
+        <aside className="w-full md:w-[420px] h-[50vh] md:h-full premium-glass-panel bg-slate-900/90 rounded-none border-t md:border-t-0 md:border-r border-slate-800 overflow-y-auto p-4 md:p-6 flex flex-col gap-6 z-10 custom-scrollbar relative">
+          <AIPredictivePanel role="hospital" />
+          
           <h2 className="text-xl font-black flex items-center gap-3 tracking-tight text-white">
             <span className="w-3 h-3 rounded-full bg-red-500 animate-glow-pulse shadow-[0_0_10px_rgba(239,68,68,0.5)]"></span>
             Emergency Queue
@@ -292,7 +305,7 @@ const HospitalDashboard = () => {
                     show: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", stiffness: 300, damping: 24 } }
                   }}
                   key={e.id} 
-                  className="bg-slate-800/80 p-5 rounded-2xl border-l-[4px] shadow-[0_4px_20px_rgba(0,0,0,0.15)] border-l-red-500 border border-slate-700/50 hover:border-slate-600 transition-all relative overflow-hidden group"
+                  className="premium-glass-card p-5 border-l-[4px] border-l-red-500 bg-slate-800/80 border-slate-700/50 hover:border-slate-600 transition-all relative overflow-hidden group"
                 >
                   <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 blur-[40px] rounded-full pointer-events-none group-hover:bg-red-500/10 transition-colors"></div>
                   <div className="flex justify-between items-start mb-4 relative z-10">
@@ -306,23 +319,38 @@ const HospitalDashboard = () => {
                     <p className="text-xs text-orange-400 flex items-center gap-2 font-medium leading-relaxed"><MapPin size={14} className="text-orange-500/70"/> {locations[e.id] || 'Loading location...'}</p>
                   </div>
                   
-                  <div className="flex gap-3 relative z-10">
-                    <Button 
-                      variant="primary"
-                      className="flex-1 bg-slate-700 hover:bg-slate-600 border border-slate-600 hover:border-slate-500 text-slate-200 text-xs px-2 shadow-none rounded-xl"
-                      onClick={() => acceptEmergency(e.id)}
-                    >
-                      Manual Accept
-                    </Button>
-                    <Button 
-                      variant="secondary"
-                      disabled={dispatchingId === e.id}
-                      className="flex-1 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 border-none shadow-[0_0_15px_rgba(79,70,229,0.3)] hover:shadow-[0_0_20px_rgba(79,70,229,0.5)] text-white text-xs px-2 flex items-center justify-center gap-2 rounded-xl"
-                      onClick={() => handleAutoDispatch(e.id)}
-                    >
-                      <BrainCircuit size={14} className={dispatchingId === e.id ? 'animate-spin' : ''} />
-                      {dispatchingId === e.id ? 'Computing...' : 'AI Dispatch'}
-                    </Button>
+                  <div className="flex flex-col gap-2 relative z-10">
+                    <div className="flex gap-2">
+                      <MagneticButton className="flex-1">
+                        <Button 
+                          variant="primary"
+                          className="w-full bg-slate-700 hover:bg-slate-600 border border-slate-600 hover:border-slate-500 text-slate-200 text-xs px-2 shadow-none rounded-xl"
+                          onClick={() => acceptEmergency(e.id)}
+                        >
+                          Manual Accept
+                        </Button>
+                      </MagneticButton>
+                      <MagneticButton className="flex-1">
+                        <Button 
+                          variant="secondary"
+                          disabled={dispatchingId === e.id}
+                          className="w-full bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 border-none shadow-[0_0_15px_rgba(79,70,229,0.3)] hover:shadow-[0_0_20px_rgba(79,70,229,0.5)] text-white text-xs px-2 flex items-center justify-center gap-2 rounded-xl"
+                          onClick={() => handleAutoDispatch(e.id)}
+                        >
+                          <BrainCircuit size={14} className={dispatchingId === e.id ? 'animate-spin' : ''} />
+                          {dispatchingId === e.id ? 'Computing...' : 'AI Dispatch'}
+                        </Button>
+                      </MagneticButton>
+                    </div>
+                    <MagneticButton className="w-full mt-1">
+                      <Button 
+                        variant="warning"
+                        className="w-full bg-orange-600/20 hover:bg-orange-600/40 border border-orange-500/50 text-orange-400 text-xs px-2 shadow-none rounded-xl"
+                        onClick={() => handleDispatchVolunteer(e.id)}
+                      >
+                        Dispatch Local ASHA/Volunteer First
+                      </Button>
+                    </MagneticButton>
                   </div>
                 </motion.div>
               ))}
@@ -337,7 +365,7 @@ const HospitalDashboard = () => {
               </h2>
               <div className="space-y-4">
                 {incomingPatients.map((e) => (
-                  <div key={e.id} className="bg-slate-800/80 p-5 rounded-2xl border-l-[4px] shadow-[0_4px_20px_rgba(0,0,0,0.15)] border-l-orange-500 border border-slate-700/50 hover:border-slate-600 transition-all">
+                  <div key={e.id} className="premium-glass-card p-5 border-l-[4px] border-l-orange-500 bg-slate-800/80 border-slate-700/50 hover:border-slate-600 transition-all">
                     <div className="flex justify-between items-start mb-4">
                       <Badge variant="warning" className="uppercase tracking-widest text-[9px] font-black bg-orange-900/40 text-orange-400 border border-orange-800/50 shadow-[0_0_10px_rgba(249,115,22,0.15)]">
                         <Truck size={12} className="inline mr-1" /> En Route
@@ -347,16 +375,18 @@ const HospitalDashboard = () => {
                     <p className="text-base font-bold mb-4 text-slate-100 leading-snug">{e.symptoms}</p>
                     
                     <div className="flex flex-col gap-3">
-                      <Button 
-                        variant="secondary"
-                        className="w-full uppercase tracking-widest text-[10px] font-black py-3 bg-slate-700/50 hover:bg-slate-700 text-blue-400 border border-blue-900/50 hover:border-blue-700/50 shadow-none rounded-xl transition-all"
-                        onClick={() => {
-                          setSelectedEmergency(e);
-                          setChecklist({ blood: false, bed: false, doctor: false, medicine: false });
-                        }}
-                      >
-                        Open Pre-Arrival HUD
-                      </Button>
+                      <MagneticButton className="w-full">
+                        <Button 
+                          variant="secondary"
+                          className="w-full uppercase tracking-widest text-[10px] font-black py-3 bg-slate-700/50 hover:bg-slate-700 text-blue-400 border border-blue-900/50 hover:border-blue-700/50 shadow-none rounded-xl transition-all"
+                          onClick={() => {
+                            setSelectedEmergency(e);
+                            setChecklist({ blood: false, bed: false, doctor: false, medicine: false });
+                          }}
+                        >
+                          Open Pre-Arrival HUD
+                        </Button>
+                      </MagneticButton>
                     </div>
                   </div>
                 ))}
