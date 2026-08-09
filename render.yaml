@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: caresphere-backend
+    name: caresphere-api
     env: python
     plan: free
     rootDir: ehs-backend
