@@ -2,6 +2,7 @@ services:
   - type: web
     name: caresphere-backend
     env: docker
+    plan: free
     dockerContext: ./ehs-backend
     dockerfilePath: ./ehs-backend/Dockerfile
     envVars:
@@ -15,9 +16,9 @@ services:
         generateValue: true
       - key: JWT_SECRET_KEY
         generateValue: true
-      # You can add your Twilio tokens here in the Render dashboard later!
 
 databases:
   - name: caresphere-db
+    plan: free
     databaseName: ehs
     user: ehs_admin
