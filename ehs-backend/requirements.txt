@@ -14,5 +14,5 @@ joblib
 bcrypt
 Flask-Migrate
 Flask-Limiter
-gunicorn
+gunicorn==20.1.0
 twilio
