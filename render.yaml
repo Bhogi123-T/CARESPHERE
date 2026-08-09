@@ -3,8 +3,7 @@ services:
     name: caresphere-backend
     env: docker
     plan: free
-    dockerContext: ./ehs-backend
-    dockerfilePath: ./ehs-backend/Dockerfile
+    dockerContext: ehs-backend
     envVars:
       - key: FLASK_ENV
         value: production
