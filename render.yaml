@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: caresphere-backend
+    env: docker
+    dockerContext: ./ehs-backend
+    dockerfilePath: ./ehs-backend/Dockerfile
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: caresphere-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      # You can add your Twilio tokens here in the Render dashboard later!
+
+databases:
+  - name: caresphere-db
+    databaseName: ehs
+    user: ehs_admin
