@@ -390,7 +390,7 @@ def handle_accept_emergency(data):
                 },
             )
 
-            # Notify the patient that their request was accepted
+            # Notify the patient that their request was accepted (Online)
             socketio.emit(
                 "emergency_accepted",
                 {
@@ -399,6 +399,16 @@ def handle_accept_emergency(data):
                     "role": role,
                 },
             )
+            
+            # PHASE 3: Offline Notification - Send SMS back to the Patient!
+            # If the patient has no network, they won't get the socket event. 
+            # We must SMS them to confirm help is coming.
+            patient_user = User.query.get(emergency.patient_id)
+            if patient_user and patient_user.contact_info:
+                NotificationService.send_sms(
+                    patient_user.contact_info,
+                    f"AMBULANCE EN ROUTE: Help is on the way! The {role} has accepted your SOS and is coming to your location."
+                )
 
             # Update everyone's dashboard
             broadcast_emergencies()
