@@ -64,6 +64,15 @@ const LanguageToggle = () => {
                   onClick={() => {
                     changeLanguage(lang.code);
                     setIsOpen(false);
+                    
+                    // Trigger hidden Google Translate Widget
+                    setTimeout(() => {
+                      const select = document.querySelector('.goog-te-combo');
+                      if (select) {
+                        select.value = lang.code;
+                        select.dispatchEvent(new Event('change'));
+                      }
+                    }, 100);
                   }}
                   className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors flex items-center justify-between
                     ${language === lang.code 
