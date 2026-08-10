@@ -5,6 +5,7 @@ import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
 import InteractiveCard from '../components/ui/InteractiveCard';
 import MagneticButton from '../components/ui/MagneticButton';
 import AnimatedCounter from '../components/ui/AnimatedCounter';
+import LanguageToggle from '../components/ui/LanguageToggle';
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -31,6 +32,7 @@ const Navbar = () => {
           <a href="#features" className="text-sm font-bold text-slate-300 hover:text-medical-400 transition-colors uppercase tracking-widest">Features</a>
           <a href="#impact" className="text-sm font-bold text-slate-300 hover:text-medical-400 transition-colors uppercase tracking-widest">Impact</a>
           <Link to="/login" className="text-sm font-bold text-slate-300 hover:text-white transition-colors uppercase tracking-widest">Login</Link>
+          <LanguageToggle />
           <Link to="/register">
             <MagneticButton size="sm" className="px-6 py-2 bg-white text-slate-900 hover:bg-slate-200 shadow-none font-bold rounded-xl">
               Get Started
@@ -56,6 +58,9 @@ const Navbar = () => {
             <a href="#features" onClick={() => setMobileMenuOpen(false)} className="text-lg font-bold text-slate-300 hover:text-white">Features</a>
             <a href="#impact" onClick={() => setMobileMenuOpen(false)} className="text-lg font-bold text-slate-300 hover:text-white">Impact</a>
             <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="text-lg font-bold text-slate-300 hover:text-white">Login</Link>
+            <div className="py-2">
+              <LanguageToggle />
+            </div>
             <Link to="/register" onClick={() => setMobileMenuOpen(false)} className="mt-4">
               <button className="w-full py-4 rounded-xl bg-medical-500 text-white font-bold text-lg">Get Started</button>
             </Link>
