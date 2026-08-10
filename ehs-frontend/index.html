@@ -12,7 +12,6 @@
       function googleTranslateElementInit() {
         new google.translate.TranslateElement({
           pageLanguage: 'en',
-          layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
           autoDisplay: false
         }, 'google_translate_element');
       }
@@ -20,38 +19,51 @@
     <script type="text/javascript" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
     <style>
       /* Hide the top Google Translate banner */
-      .skiptranslate iframe {
+      .skiptranslate > iframe {
         display: none !important;
       }
       body {
         top: 0 !important;
       }
-      /* Custom Google Translate Widget Styling for Dark UI */
+      
+      /* Premium Google Translate Widget Styling */
       #google_translate_element {
         position: fixed;
         bottom: 24px;
-        right: 90px;
+        left: 24px; /* Move to left to prevent dropdown squishing on the right */
         z-index: 99999;
+        background: rgba(15, 23, 42, 0.8);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
       }
-      .goog-te-gadget-simple {
-        background-color: #0f172a !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        border-radius: 9999px !important;
-        padding: 8px 16px !important;
-        font-family: inherit !important;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5) !important;
+      
+      /* Make the dropdown container look better */
+      .goog-te-combo {
+        background-color: #1e293b;
+        color: #f8fafc;
+        border: 1px solid #334155;
+        border-radius: 6px;
+        padding: 6px;
+        font-family: inherit;
+        outline: none;
+        cursor: pointer;
+        width: 150px;
       }
-      .goog-te-gadget-simple span {
-        color: #e2e8f0 !important;
+      
+      .goog-te-combo:hover {
+        border-color: #38bdf8;
       }
-      .goog-te-menu-value span {
-        color: #e2e8f0 !important;
+      
+      .goog-logo-link, .goog-te-gadget span, .goog-te-gadget a {
+        display: none !important;
       }
-      .goog-te-menu-value span:nth-child(5) {
-        color: #38bdf8 !important; /* The dropdown arrow */
-      }
-      .goog-te-menu-frame {
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5) !important;
+      
+      .goog-te-gadget {
+        color: transparent !important;
+        font-size: 0px !important;
       }
     </style>
   </head>
