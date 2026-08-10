@@ -6,6 +6,7 @@ import InteractiveCard from '../components/ui/InteractiveCard';
 import MagneticButton from '../components/ui/MagneticButton';
 import AnimatedCounter from '../components/ui/AnimatedCounter';
 import LanguageToggle from '../components/ui/LanguageToggle';
+import InstallPWA from '../components/ui/InstallPWA';
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
@@ -254,6 +255,7 @@ const LandingPage = () => {
           </div>
         </div>
       </footer>
+      <InstallPWA />
     </div>
   );
 };

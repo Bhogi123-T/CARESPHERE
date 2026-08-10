@@ -33,6 +33,7 @@ import TeleConsultModal from '../components/ui/TeleConsultModal';
 import ZeroSignalModal from '../components/ui/ZeroSignalModal';
 import AgentWidget from '../components/ui/AgentWidget';
 import AIPredictivePanel from '../components/ui/AIPredictivePanel';
+import InstallPWA from '../components/ui/InstallPWA';
 
 // --- OFFLINE SAFE ICONS ---
 const defaultIcon = L.divIcon({
@@ -980,6 +981,7 @@ const PatientDashboard = () => {
                 <p className="font-black text-yellow-400 text-lg mb-2 flex items-center gap-2 relative z-10">Heatwave Warning ⚠️</p>
                 <Badge variant="danger" className="mb-3 relative z-10">High Risk: Elderly</Badge>
                 <p className="text-sm font-medium text-slate-300 leading-relaxed relative z-10 mt-2">Ensure adequate hydration. Avoid direct sun exposure between 12PM and 4PM.</p>
+                <AgentWidget onAgentAction={handleAgentAction} />
               </div>
             </div>
 
@@ -1042,6 +1044,7 @@ const PatientDashboard = () => {
       />
 
       </div>
+      <InstallPWA />
     </div>
   );
 };
