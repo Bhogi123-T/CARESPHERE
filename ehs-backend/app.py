@@ -247,14 +247,17 @@ def abdm_fetch_profile():
 
 @socketio.on("new_emergency")
 def handle_new_emergency(data):
+    # Handle case where location is null or denied
+    loc_data = data.get("location") or {}
+    
     # Save to database
     emergency = Emergency(
         id=str(uuid.uuid4()),
         patient_id=data.get("patient_id"),
         symptoms=data.get("symptoms"),
         risk_level=data.get("risk_level"),
-        lat=data.get("location", {}).get("lat"),
-        lng=data.get("location", {}).get("lng"),
+        lat=loc_data.get("lat"),
+        lng=loc_data.get("lng"),
         location_name=data.get("locationName"),
         status="PENDING",
     )
@@ -266,8 +269,8 @@ def handle_new_emergency(data):
         e_id = emergency.id
         e_patient_id = data.get("patient_id")
         e_risk_level = data.get("risk_level")
-        e_lat = data.get("location", {}).get("lat")
-        e_lng = data.get("location", {}).get("lng")
+        e_lat = loc_data.get("lat")
+        e_lng = loc_data.get("lng")
         e_location_name = data.get("locationName")
         e_symptoms = data.get("symptoms")
 
