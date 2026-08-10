@@ -235,52 +235,47 @@ const PatientDashboard = () => {
     
     setStatus('SEARCHING');
     
+    const eCode = getEmergencyCode(symptoms);
+    const pBlood = profile?.blood_group || 'Unknown';
+    const timeStr = new Date().toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute: '2-digit'}).replace(':', '');
+    
     if (isCurrentlyOffline) {
       const hospitalNumber = "9999999999"; 
       const familyNumber = profile?.family_contact || "1234567890";
       const recipients = `108,${hospitalNumber},${familyNumber}`;
       
-      const pBlood = profile?.blood_group || 'Unknown';
-      const eCode = getEmergencyCode(symptoms);
-      const timeStr = new Date().toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute: '2-digit'}).replace(':', '');
-      
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude.toFixed(5);
-          const lng = pos.coords.longitude.toFixed(5);
-          const body = encodeURIComponent(`SOS001|${lat}|${lng}|${eCode}|${pBlood}|${batteryLevel}|${timeStr}`);
-          window.location.href = `sms:${recipients}?body=${body}`;
-          setStatus('IDLE');
-        },
-        (err) => {
-          const body = encodeURIComponent(`SOS001|0.00000|0.00000|${eCode}|${pBlood}|${batteryLevel}|${timeStr}`);
-          window.location.href = `sms:${recipients}?body=${body}`;
-          setStatus('IDLE');
-        }
-      );
+      if (location && location.lat && location.lng) {
+        const lat = location.lat.toFixed(5);
+        const lng = location.lng.toFixed(5);
+        const body = encodeURIComponent(`SOS001|${lat}|${lng}|${eCode}|${pBlood}|${batteryLevel}|${timeStr}`);
+        window.location.href = `sms:${recipients}?body=${body}`;
+        setStatus('IDLE');
+      } else {
+        const body = encodeURIComponent(`SOS001|0.00000|0.00000|${eCode}|${pBlood}|${batteryLevel}|${timeStr}`);
+        window.location.href = `sms:${recipients}?body=${body}`;
+        setStatus('IDLE');
+      }
       return;
     }
     
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        socket.emit('new_emergency', {
-          patient_id: user.id.toString(),
-          symptoms: symptoms,
-          risk_level: 'CRITICAL',
-          location: { lat: pos.coords.latitude, lng: pos.coords.longitude },
-          locationName: locationName
-        });
-      },
-      (err) => {
-        socket.emit('new_emergency', {
-          patient_id: user.id.toString(),
-          symptoms: symptoms,
-          risk_level: 'CRITICAL',
-          location: null,
-          locationName: 'Location Access Denied'
-        });
-      }
-    );
+    // Online SOS Dispatch
+    if (location && location.lat && location.lng) {
+      socket.emit('new_emergency', {
+        patient_id: user.id.toString(),
+        symptoms: symptoms,
+        risk_level: 'CRITICAL',
+        location: { lat: location.lat, lng: location.lng },
+        locationName: locationName || 'Unknown Location'
+      });
+    } else {
+      socket.emit('new_emergency', {
+        patient_id: user.id.toString(),
+        symptoms: symptoms,
+        risk_level: 'CRITICAL',
+        location: null,
+        locationName: 'Rural Area (Location Unavailable)'
+      });
+    }
   };
 
   const startRecording = () => {
