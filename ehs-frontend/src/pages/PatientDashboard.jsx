@@ -80,6 +80,7 @@ const PatientDashboard = () => {
   const { user, logout } = useAuth();
   const { t } = useLanguage();
   const { isOnline } = useNetworkState();
+  const { addToast } = useToast();
   const [isConsultModalOpen, setIsConsultModalOpen] = useState(false);
   const [showZeroSignalModal, setShowZeroSignalModal] = useState(false);
 
@@ -180,6 +181,13 @@ const PatientDashboard = () => {
         setResponder(data.role);
         setActiveEmergencyId(data.emergency_id);
         newSocket.emit('request_emergencies');
+        
+        // Notify the patient clearly
+        addToast(
+          `Help is on the way! The ${data.role} has accepted your SOS and is en route.`,
+          'success',
+          10000
+        );
       }
     });
 
